@@ -12,7 +12,7 @@ import Control.Monad.State.Strict (MonadState, get, modify, put)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BSC
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
-import System.Console.Repl
+import Linenoise
 
 newtype History = History { unHistory :: [ByteString] }
 

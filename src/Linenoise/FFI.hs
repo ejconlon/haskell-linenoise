@@ -1,7 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-{-# LANGUAGE OverloadedStrings #-}
 
-module System.Console.FFI (
+module Linenoise.FFI (
   getInputLine,
   addHistory,
   clearScreen,
