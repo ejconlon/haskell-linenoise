@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -11,10 +10,8 @@ module System.Console.Repl (
   ReplT,
   runRepl,
 
-  Settings(..),
+  Settings (..),
   defaultSettings,
-
-  byWord,
 
   replIO,
   replM,
@@ -23,7 +20,9 @@ module System.Console.Repl (
 ) where
 
 import qualified System.Console.FFI as FFI
-import Data.String (IsString(..))
+import Data.ByteString (ByteString)
+-- TODO(econlon) Support UTF8
+import qualified Data.ByteString.Char8 as BSC
 
 import Control.Monad.Identity
 import Control.Monad.Trans
@@ -46,16 +45,16 @@ runRepl :: ReplT m a -> Settings -> m a
 runRepl m s = runReaderT (unReplT m) s
 
 class MonadCatch m => MonadRepl m where
-  getInputLine  :: IsString s => String -> m (Maybe s)
-  outputStr     :: String -> m ()
-  outputStrLn   :: String -> m ()
-  addHistory    :: String -> m ()
-  setCompletion :: (String -> m [String]) -> m ()
+  getInputLine  :: ByteString -> m (Maybe ByteString)
+  outputStr     :: ByteString -> m ()
+  outputStrLn   :: ByteString -> m ()
+  addHistory    :: ByteString -> m ()
+  setCompletion :: (ByteString -> m [ByteString]) -> m ()
 
 instance MonadRepl IO where
   getInputLine  = FFI.getInputLine
-  outputStr     = putStr
-  outputStrLn   = putStrLn
+  outputStr     = BSC.putStr
+  outputStrLn   = BSC.putStrLn
   addHistory    = FFI.addHistory
   setCompletion = FFI.setCompletion
 
@@ -65,69 +64,36 @@ instance MonadRepl m => MonadRepl (ReplT m) where
   outputStrLn   = lift . outputStrLn
   addHistory    = lift . addHistory
 
-  setCompletion :: (String -> ReplT m [String]) -> ReplT m ()
   setCompletion f = do
     settings <- ask
-    lift $ setCompletion (flip runRepl settings . f )
+    lift (setCompletion (flip runRepl settings . f))
 
 instance MonadState s m => MonadState s (ReplT m) where
   get = lift get
   put = lift . put
 
-instance (MonadRepl m) => MonadRepl (StateT s m) where
+instance MonadRepl m => MonadRepl (StateT s m) where
   getInputLine  = lift . getInputLine
   outputStr     = lift . outputStr
   outputStrLn   = lift . outputStrLn
   addHistory    = lift . addHistory
   setCompletion f = do
     st <- get
-    lift $ setCompletion (flip evalStateT st. f )
-
--- XXX cleanup
-byWord :: (Monad m) => (String -> m [String]) -> (String -> m [String])
-byWord f line = do
-  let split = words line
-  case split of
-    [] -> f line
-    [_] -> f line
-    sp -> do
-      let (x,xs) = (last sp, init sp)
-      res <- (f x)
-      case res of
-        [] -> return [line]
-        [y] -> do
-          return [(unwords xs) ++ " " ++ x ++ (trimComplete x y) ++ " "]
-        ys -> do
-          return $ map (complete x xs) ys
-
-complete :: String -> [String] -> String -> String
-complete x xs y =
-  (unwords xs) ++ " " ++ x ++ (trimComplete x y)
-
-trimComplete :: String -> String -> String
-trimComplete = drop . length
+    lift (setCompletion (flip evalStateT st . f))
 
 -- | Simple REPL embedded in IO.
 replIO
-  :: String                -- ^ Prompt
-  -> (String -> IO a)      -- ^ Action
-  -> (String -> IO [String])  -- ^ Completion
+  :: ByteString                       -- ^ Prompt
+  -> (ByteString -> IO a)             -- ^ Action
+  -> (ByteString -> IO [ByteString])  -- ^ Completion
   -> IO ()
-replIO prompt action comp = do
-  setCompletion comp
-  res <- getInputLine prompt
-  case res of
-    Nothing   -> return ()
-    Just line -> do
-      _ <- action line
-      FFI.addHistory line
-      replIO prompt action comp
+replIO = replM
 
 replM
   :: (MonadRepl m)
-  => String                  -- ^ Prompt
-  -> (String -> m a)         -- ^ Action
-  -> (String -> m [String])  -- ^ Completion
+  => ByteString                      -- ^ Prompt
+  -> (ByteString -> m a)             -- ^ Action
+  -> (ByteString -> m [ByteString])  -- ^ Completion
   -> m ()
 replM prompt action comp = do
   setCompletion comp

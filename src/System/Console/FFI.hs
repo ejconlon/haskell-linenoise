@@ -3,8 +3,6 @@
 
 module System.Console.FFI (
   getInputLine,
-  outputStr,
-  outputStrLn,
 
   addHistory,
   clearScreen,
@@ -16,17 +14,12 @@ module System.Console.FFI (
   setCompletion,
 ) where
 
+import Data.Foldable (forM_)
+import Data.ByteString (ByteString)
+import qualified Data.ByteString.Unsafe as BSU
 import Foreign
 import Foreign.C.String
 import Foreign.C.Types(CInt(..), CChar, CSize)
-
-import Data.String (IsString(..))
-
-outputStr :: String -> IO ()
-outputStr = putStr
-
-outputStrLn :: String -> IO ()
-outputStrLn = putStrLn
 
 foreign import ccall "linenoise.h linenoise"
   linenoise :: CString -> IO CString
@@ -70,28 +63,26 @@ instance Storable CompletionType where
 type CompleteFunc = (CString -> Completion -> IO ())
 
 -- Make a completion function pointer.
-makeCompletion :: (String -> IO [String]) -> (CString -> Completion -> IO ())
+makeCompletion :: (ByteString -> IO [ByteString]) -> (CString -> Completion -> IO ())
 makeCompletion f = \buf lc -> do
-  line <- peekCString buf
+  line <- BSU.unsafePackCString buf
   comps <- f line
-  cstrs <- mapM newCString comps
-  mapM_ (linenoiseAddCompletion lc) cstrs
+  forM_ comps (flip BSU.unsafeUseAsCString (linenoiseAddCompletion lc))
 
 -- Run the prompt, yielding a polymorphic string ( String, Text, ByteString ).
-getInputLine :: IsString a => String -> IO (Maybe a)
-getInputLine prompt = do
-  str <- newCString prompt
-  ptr <- linenoise str
-  res <- maybePeek peekCString ptr
-  free str
-  return (fmap fromString res)
+getInputLine :: ByteString -> IO (Maybe ByteString)
+getInputLine =
+  flip BSU.unsafeUseAsCString $ \str -> do
+    ptr <- linenoise str
+    -- TODO(ejconlon) safe???
+    maybePeek BSU.unsafePackCString ptr
 
 -- | Add to current history.
-addHistory :: String -> IO ()
-addHistory line = do
-  str <- newCString line
-  _ <- linenoiseHistoryAdd str
-  return ()
+addHistory :: ByteString -> IO ()
+addHistory =
+  flip BSU.unsafeUseAsCString $ \str -> do
+    _ <- linenoiseHistoryAdd str
+    return ()
 
 -- | Limit the maximum history length.
 stifleHistory :: Int -> IO ()
@@ -123,7 +114,7 @@ printKeycodes :: IO ()
 printKeycodes = linenoisePrintKeyCodes
 
 -- | Set the current completion function
-setCompletion :: (String -> IO [String]) -> IO ()
+setCompletion :: (ByteString -> IO [ByteString]) -> IO ()
 setCompletion f = do
   cb <- makeFunPtr (makeCompletion f)
   linenoiseSetCompletionCallback cb
