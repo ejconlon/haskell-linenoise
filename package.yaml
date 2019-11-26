@@ -30,6 +30,11 @@ ghc-options:
 - -fno-warn-unused-top-binds
 
 library:
+  exposed-modules:
+  - Linenoise
+  - Linenoise.Unlift
+  - Linenoise.Repl
+  - Linenoise.Completion
   source-dirs: src
   include-dirs: cbits
   c-sources: cbits/linenoise.c

@@ -1,16 +1,17 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 
-module Linenoise.FFI (
-  addHistory,
-  clearScreen,
-  getInputLine,
-  historyLoad,
-  historySave,
-  printKeycodes,
-  setCompletion,
-  setMultiline,
-  stifleHistory,
-) where
+-- | Just an FFI layer over the C library.
+module Linenoise.FFI
+  ( addHistory
+  , clearScreen
+  , getInputLine
+  , historyLoad
+  , historySave
+  , printKeycodes
+  , setCompletion
+  , setMultiline
+  , stifleHistory
+  ) where
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Unsafe as BSU
@@ -107,7 +108,7 @@ clearScreen = linenoiseClearScreen
 setMultiline :: Bool -> IO ()
 setMultiline = linenoiseSetMultiLine . fromBool
 
--- Print keycodes
+-- | Print keycodes.
 printKeycodes :: IO ()
 printKeycodes = linenoisePrintKeyCodes
 

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 08ae98dae8aeb3dd229d84a27d6cc74065f1a4b95f55aa489f7c145f39f3594c
+-- hash: fb0addf5411bcda1f052aa7238506e7ba60a2958bea5172b84460391058c337a
 
 name:           linenoise
 version:        0.2.0
@@ -27,11 +27,11 @@ source-repository head
 library
   exposed-modules:
       Linenoise
-      Linenoise.Completion
-      Linenoise.FFI
-      Linenoise.Repl
       Linenoise.Unlift
+      Linenoise.Repl
+      Linenoise.Completion
   other-modules:
+      Linenoise.FFI
       Paths_linenoise
   hs-source-dirs:
       src

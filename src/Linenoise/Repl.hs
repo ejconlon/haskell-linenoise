@@ -2,6 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
+-- | Helper functions and transformer to write your own REPLs.
 module Linenoise.Repl
   ( ReplT (..)
   , replM
@@ -23,7 +24,7 @@ import Data.ByteString (ByteString)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import qualified Linenoise.Unlift as Unlift
 
--- | Basic monad transformer with mutable state that can be used with all `Linenoise.Unlift` functions.
+-- | Basic monad transformer with mutable state that can be used with all "Linenoise.Unlift" functions.
 --   You do not have to use this, but it's here to cover most of what you would need without having
 --   to roll your own newtype.
 newtype ReplT r s m a = ReplT { unReplT :: ReaderT r (ReaderT (IORef s) m) a }
