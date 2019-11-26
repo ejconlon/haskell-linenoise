@@ -1,8 +1,4 @@
 {-# LANGUAGE ConstraintKinds #-}
--- {-# LANGUAGE FlexibleContexts #-}
--- {-# LANGUAGE FlexibleInstances #-}
--- {-# LANGUAGE GeneralizedNewtypeDeriving #-}
--- {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module System.Console.Repl (
@@ -19,15 +15,19 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BSC
 import qualified System.Console.FFI as FFI
 
+-- Run the prompt, yielding a string.
 getInputLine :: MonadIO m => ByteString -> m (Maybe ByteString)
 getInputLine = liftIO . FFI.getInputLine
 
+-- | Add to current history.
 addHistory :: MonadIO m => ByteString -> m ()
 addHistory = liftIO . FFI.addHistory
 
+-- | Set the current completion function
 setCompletion :: MonadUnliftIO m => (ByteString -> m [ByteString]) -> m ()
 setCompletion = undefined
 
+-- | Run a simple REPL.
 replM
   :: MonadUnliftIO m
   => ByteString                      -- ^ Prompt
