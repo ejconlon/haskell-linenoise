@@ -1,7 +1,8 @@
 # linenoise
 
-A lightweight readline-replacement library for Haskell based on the `linenoise` library. (NOT PRODUCTION READY!)
+[![CircleCI](https://circleci.com/gh/ejconlon/haskell-linenoise/tree/master.svg?style=svg)](https://circleci.com/gh/ejconlon/haskell-linenoise/tree/master)
 
+A lightweight readline-replacement library for Haskell based on the `linenoise` library. (Not production ready!)
 See the [demo app](https://github.com/ejconlon/haskell-linenoise/blob/master/app/Main.hs).
 
 ## Differences from alternatives
