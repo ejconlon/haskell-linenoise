@@ -10,7 +10,7 @@ cidocs: docs
 
 .PHONY: cicompress
 cicompress:
-	tar -cvzf /tmp/haddock.tar.gz -C $$(stack path --local-install-root)/doc .
+	tar -cvzf /tmp/haddock.tar.gz -C $$(stack path --local-install-root) doc
 
 .PHONY: build
 build:
