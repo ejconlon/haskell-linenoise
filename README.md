@@ -1,62 +1,40 @@
-Repl
-----
+# linenoise
 
-TODO
-* rename
-* proper license
-* split unlift module
-* support save
-* create repl module with settings
+A lightweight readline-replacement library for Haskell based on the `linenoise` library. (NOT PRODUCTION READY!)
 
-Initial work on a lightweight readline library for Haskell based on the ``linenoise`` library. Designed from
-the ground up to work more smoothly with modern monad transformers and exceptions libraries.
+See the [demo app](https://github.com/ejconlon/haskell-linenoise/blob/master/app/Main.hs).
 
-```haskell
-import System.Console.Repl
+## Differences from alternatives
 
-type Repl = ReplT IO
+* `haskeline`
+  * This uses FFI to a minimal C library vs pure Haskell
+  * This uses standard MTL/Unlift typeclasses vs custom ones.
+  * This does not require the use of a specific monad transformer.
+* `readline`
+  * This offers a `MonadIO/MonadUnliftIO` interface vs raw `IO`.
+  * This vendors and statically links its underlying library to simplify the build process.
 
-completer :: String -> [String]
-completer ('h':_) = ["hello", "hello there"]
-completer _ = []
+## License and attribution
 
-repl :: Repl ()
-repl = replM ">>> " outputStrLn completer
+This library includes the source code and license for `linenoise` in `cbits`.
+It is a fork of an older [library](https://github.com/sdiehl/haskell-linenoise) with all licensing and
+attribution preserved.
 
-main :: IO ()
-main = runRepl repl defaultSettings
-```
+## Development workflow
 
-Can compose with the regular State monad, for instance to do stateful tab completion. Something which is
-painful with Haskeline.
+The `Makefile` has a bunch of relevant phony targets for a development workflow including
 
-```haskell
-import System.Console.Repl
-import Control.Monad.State.Strict
-import Data.List (isPrefixOf)
+* `download` - Update vendored `linenoise`
+* `demo` - Run the demo app
+* `deps` - Install dev tools
+* `lint` - Lint with `hlint`
+* `format` - Format with `stylish-haskell`
+* `cisetup` - Invoked by CI to setup GHC
+* `citest` - Invoked by CI to test (build and lint)
 
-type Repl = ReplT (StateT [String] IO)
+## TODO
 
-completer :: String -> Repl [String]
-completer line = do
-  comps <- get
-  return $ filter (isPrefixOf line) comps
-
-action :: String -> Repl ()
-action x = do
-  modify $ (x:)
-  liftIO $ putStrLn x
-
-repl :: Repl ()
-repl = replM ">>> " action (byWord completer)
-
-main :: IO ()
-main = evalStateT (runRepl repl defaultSettings) []
-```
-
-License
--------
-
-Includes the source code and license for linenoise in `cbits`. Released under the BSD license.
-
-Copyright (c) 2014-2017, Stephen Diehl
+* Support unicode (may involve vendoring a `linenoise` [fork](https://github.com/yhirose/linenoise/tree/utf8-support))
+* Verify that my FFI modifications for `ByteString` are memory-safe
+* Expose more of the `linenoise` API
+* Upload to Hackage
