@@ -1,98 +1,35 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ConstraintKinds #-}
+-- {-# LANGUAGE FlexibleContexts #-}
+-- {-# LANGUAGE FlexibleInstances #-}
+-- {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+-- {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module System.Console.Repl (
-  Settings (..),
-  defaultSettings,
-
-  ReplT,
-  runReplT,
-
-  MonadRepl(..),
-
-  replIO,
+  getInputLine,
+  addHistory,
+  setCompletion,
   replM,
-
   byWord
 ) where
 
-import Control.Monad.Catch (MonadThrow, MonadCatch)
-import Control.Monad.Fail (MonadFail)
-import Control.Monad.Fix (MonadFix)
-import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Reader (MonadReader, ReaderT, ask, runReaderT)
-import Control.Monad.State.Strict (MonadState, StateT, evalStateT, get, put)
-import Control.Monad.Trans (MonadTrans, lift)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BSC
 import qualified System.Console.FFI as FFI
 
-data Settings = Settings
-  { historyFile :: Maybe FilePath
-  }
+getInputLine :: MonadIO m => ByteString -> m (Maybe ByteString)
+getInputLine = liftIO . FFI.getInputLine
 
-defaultSettings :: Settings
-defaultSettings = Settings Nothing
+addHistory :: MonadIO m => ByteString -> m ()
+addHistory = liftIO . FFI.addHistory
 
-newtype ReplT m a =
-  ReplT { unReplT :: ReaderT Settings m a }
-  deriving (Functor, Monad, Applicative, MonadIO, MonadReader Settings,
-            MonadFix, MonadTrans, MonadThrow, MonadCatch, MonadFail)
-
-runReplT :: ReplT m a -> Settings -> m a
-runReplT = runReaderT . unReplT
-
-class MonadCatch m => MonadRepl m where
-  getInputLine  :: ByteString -> m (Maybe ByteString)
-  outputStr     :: ByteString -> m ()
-  outputStrLn   :: ByteString -> m ()
-  addHistory    :: ByteString -> m ()
-  setCompletion :: (ByteString -> m [ByteString]) -> m ()
-
-instance MonadRepl IO where
-  getInputLine  = FFI.getInputLine
-  outputStr     = BSC.putStr
-  outputStrLn   = BSC.putStrLn
-  addHistory    = FFI.addHistory
-  setCompletion = FFI.setCompletion
-
-instance MonadRepl m => MonadRepl (ReplT m) where
-  getInputLine  = lift . getInputLine
-  outputStr     = lift . outputStr
-  outputStrLn   = lift . outputStrLn
-  addHistory    = lift . addHistory
-
-  setCompletion f = do
-    settings <- ask
-    lift (setCompletion (flip runReplT settings . f))
-
-instance MonadState s m => MonadState s (ReplT m) where
-  get = lift get
-  put = lift . put
-
-instance MonadRepl m => MonadRepl (StateT s m) where
-  getInputLine  = lift . getInputLine
-  outputStr     = lift . outputStr
-  outputStrLn   = lift . outputStrLn
-  addHistory    = lift . addHistory
-  setCompletion f = do
-    st <- get
-    lift (setCompletion (flip evalStateT st . f))
-
--- | Simple REPL embedded in IO.
-replIO
-  :: ByteString                       -- ^ Prompt
-  -> (ByteString -> IO ())            -- ^ Action
-  -> (ByteString -> IO [ByteString])  -- ^ Completion
-  -> IO ()
-replIO = replM
+setCompletion :: MonadUnliftIO m => (ByteString -> m [ByteString]) -> m ()
+setCompletion = undefined
 
 replM
-  :: (MonadRepl m)
+  :: MonadUnliftIO m
   => ByteString                      -- ^ Prompt
   -> (ByteString -> m ())            -- ^ Action
   -> (ByteString -> m [ByteString])  -- ^ Completion
