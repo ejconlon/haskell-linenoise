@@ -8,9 +8,9 @@ citest: test
 .PHONY: cidocs
 cidocs: docs
 
-.PHONY: cidoccompress
-cidoccompress:
-	tar -cvzf /tmp/haddock.tar.gz -C $(stack --stack --no-terminal path --local-install-root)/doc) .
+.PHONY: cicompress
+cicompress:
+	tar -cvzf /tmp/haddock.tar.gz -C $$(stack path --local-install-root)/doc .
 
 .PHONY: build
 build:
