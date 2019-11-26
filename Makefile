@@ -8,6 +8,10 @@ citest:
 	stack --no-terminal build
 	# stack --no-terminal exec -- hlint -i 'Use newtype instead of data' src app
 
+.PHONY: cidocs
+cidocs:
+	stack --no-terminal haddock --no-haddock-deps
+
 .PHONY: build
 build:
 	stack build
@@ -15,6 +19,10 @@ build:
 .PHONY: test
 test:
 	stack test
+
+.PHONY: docs
+docs:
+	stack haddock --no-haddock-deps
 
 .PHONY: demo
 demo: build
