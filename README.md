@@ -1,8 +1,6 @@
 Repl
 ----
 
-[![Build Status](https://travis-ci.org/sdiehl/haskell-linenoise.svg?branch=master)](https://travis-ci.org/sdiehl/haskell-linenoise)
-
 Initial work on a lightweight readline library for Haskell based on the ``linenoise`` library. Designed from
 the ground up to work more smoothly with modern monad transformers and exceptions libraries.
 
@@ -52,6 +50,6 @@ main = evalStateT (runRepl repl defaultSettings) []
 License
 -------
 
-Includes the source code for linenoise. Released under the BSD license.
+Includes the source code and license for linenoise in `cbits`. Released under the BSD license.
 
 Copyright (c) 2014-2017, Stephen Diehl
