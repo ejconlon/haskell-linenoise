@@ -1,4 +1,24 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
+import System.Console.Repl
+import Control.Monad.State.Strict
+import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as BSC
+
+type Repl = ReplT (StateT [ByteString] IO)
+
+completer :: ByteString -> Repl [ByteString]
+completer line = filter (BSC.isPrefixOf line) <$> get
+
+action :: ByteString -> Repl ()
+action x = do
+  modify (x:)
+  liftIO (BSC.putStrLn x)
+
+repl :: Repl ()
+repl = replM ">>> " action (byWord completer)
+
 main :: IO ()
-main = putStrLn "hi"
+main = evalStateT (runReplT repl defaultSettings) []

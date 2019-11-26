@@ -1,22 +1,23 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module System.Console.Repl (
-  ReplT,
-  runRepl,
-
   Settings (..),
   defaultSettings,
+
+  ReplT,
+  runReplT,
+
+  MonadRepl(..),
 
   replIO,
   replM,
 
-  MonadRepl(..),
+  byWord
 ) where
 
 import qualified System.Console.FFI as FFI
@@ -41,8 +42,8 @@ newtype ReplT m a =
   ReplT { unReplT :: ReaderT Settings m a }
   deriving (Functor, Monad, Applicative, MonadIO, MonadReader Settings, MonadFix, MonadTrans, MonadThrow, MonadCatch)
 
-runRepl :: ReplT m a -> Settings -> m a
-runRepl m s = runReaderT (unReplT m) s
+runReplT :: ReplT m a -> Settings -> m a
+runReplT = runReaderT . unReplT
 
 class MonadCatch m => MonadRepl m where
   getInputLine  :: ByteString -> m (Maybe ByteString)
@@ -66,7 +67,7 @@ instance MonadRepl m => MonadRepl (ReplT m) where
 
   setCompletion f = do
     settings <- ask
-    lift (setCompletion (flip runRepl settings . f))
+    lift (setCompletion (flip runReplT settings . f))
 
 instance MonadState s m => MonadState s (ReplT m) where
   get = lift get
@@ -84,7 +85,7 @@ instance MonadRepl m => MonadRepl (StateT s m) where
 -- | Simple REPL embedded in IO.
 replIO
   :: ByteString                       -- ^ Prompt
-  -> (ByteString -> IO a)             -- ^ Action
+  -> (ByteString -> IO ())            -- ^ Action
   -> (ByteString -> IO [ByteString])  -- ^ Completion
   -> IO ()
 replIO = replM
@@ -92,7 +93,7 @@ replIO = replM
 replM
   :: (MonadRepl m)
   => ByteString                      -- ^ Prompt
-  -> (ByteString -> m a)             -- ^ Action
+  -> (ByteString -> m ())            -- ^ Action
   -> (ByteString -> m [ByteString])  -- ^ Completion
   -> m ()
 replM prompt action comp = do
@@ -104,3 +105,26 @@ replM prompt action comp = do
       _ <- action line
       addHistory line
       replM prompt action comp
+
+byWord :: Monad m => (ByteString -> m [ByteString]) -> (ByteString -> m [ByteString])
+byWord f line = do
+  let split = BSC.words line
+  case split of
+    [] -> f line
+    [_] -> f line
+    sp -> do
+      let (x,xs) = (last sp, init sp)
+      res <- f x
+      case res of
+        [] -> return [line]
+        [y] ->
+          return [BSC.unwords xs <> " " <> x <> trimComplete x y <> " "]
+        ys ->
+          return (map (complete x xs) ys)
+
+complete :: ByteString -> [ByteString] -> ByteString -> ByteString
+complete x xs y =
+  BSC.unwords xs <> " " <> x <> trimComplete x y
+
+trimComplete :: ByteString -> ByteString -> ByteString
+trimComplete = BSC.drop . BSC.length

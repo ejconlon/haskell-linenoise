@@ -64,17 +64,16 @@ type CompleteFunc = (CString -> Completion -> IO ())
 
 -- Make a completion function pointer.
 makeCompletion :: (ByteString -> IO [ByteString]) -> (CString -> Completion -> IO ())
-makeCompletion f = \buf lc -> do
+makeCompletion f buf lc = do
   line <- BSU.unsafePackCString buf
   comps <- f line
-  forM_ comps (flip BSU.unsafeUseAsCString (linenoiseAddCompletion lc))
+  forM_ comps (`BSU.unsafeUseAsCString` linenoiseAddCompletion lc)
 
--- Run the prompt, yielding a polymorphic string ( String, Text, ByteString ).
+-- Run the prompt, yielding a string.
 getInputLine :: ByteString -> IO (Maybe ByteString)
 getInputLine =
   flip BSU.unsafeUseAsCString $ \str -> do
     ptr <- linenoise str
-    -- TODO(ejconlon) safe???
     maybePeek BSU.unsafePackCString ptr
 
 -- | Add to current history.
