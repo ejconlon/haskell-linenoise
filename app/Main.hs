@@ -9,7 +9,7 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BSC
 import Linenoise
 
-newtype History = History { unHistory :: [ByteString] }
+type History = [ByteString]
 
 type Repl a = ReplT () History IO a
 
@@ -17,15 +17,15 @@ runRepl :: Repl a -> History -> IO (a, History)
 runRepl n = runReplT n ()
 
 completer :: ByteString -> Repl [ByteString]
-completer line = filter (BSC.isPrefixOf line) . unHistory <$> get
+completer line = filter (BSC.isPrefixOf line) <$> get
 
 action :: ByteString -> Repl ()
 action x = do
-  modify (History . (x:) . unHistory)
+  modify (x:)
   liftIO (BSC.putStrLn x)
 
 repl :: Repl ()
 repl = replM ">>> " action (byWord completer)
 
 main :: IO ()
-main = void (runRepl repl (History []))
+main = void (runRepl repl [])
