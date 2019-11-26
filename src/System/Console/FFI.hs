@@ -3,7 +3,6 @@
 
 module System.Console.FFI (
   getInputLine,
-
   addHistory,
   clearScreen,
   stifleHistory,
@@ -56,7 +55,7 @@ instance Storable CompletionType where
   peek ptr = do
     a <- peekByteOff ptr 0
     b <- peekByteOff ptr 4
-    return (CompletionType a b)
+    pure (CompletionType a b)
   poke = error "no poke"
 
 -- Completion C callback
@@ -69,7 +68,7 @@ makeCompletion f buf lc = do
   comps <- f line
   forM_ comps (`BSU.unsafeUseAsCString` linenoiseAddCompletion lc)
 
--- Run the prompt, yielding a string.
+-- | Run the prompt, yielding a string.
 getInputLine :: ByteString -> IO (Maybe ByteString)
 getInputLine =
   flip BSU.unsafeUseAsCString $ \str -> do
@@ -81,13 +80,13 @@ addHistory :: ByteString -> IO ()
 addHistory =
   flip BSU.unsafeUseAsCString $ \str -> do
     _ <- linenoiseHistoryAdd str
-    return ()
+    pure ()
 
 -- | Limit the maximum history length.
 stifleHistory :: Int -> IO ()
 stifleHistory len = do
   _ <- linenoiseHistorySetMaxLen $ fromIntegral len
-  return ()
+  pure ()
 
 -- | Save history to a file.
 historySave :: FilePath -> IO ()

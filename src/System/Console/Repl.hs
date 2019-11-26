@@ -10,12 +10,12 @@ module System.Console.Repl (
 ) where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.IO.Unlift (MonadUnliftIO)
+import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BSC
 import qualified System.Console.FFI as FFI
 
--- Run the prompt, yielding a string.
+-- | Run the prompt, yielding a string.
 getInputLine :: MonadIO m => ByteString -> m (Maybe ByteString)
 getInputLine = liftIO . FFI.getInputLine
 
@@ -25,7 +25,7 @@ addHistory = liftIO . FFI.addHistory
 
 -- | Set the current completion function
 setCompletion :: MonadUnliftIO m => (ByteString -> m [ByteString]) -> m ()
-setCompletion = undefined
+setCompletion f = withRunInIO (\runInIO -> FFI.setCompletion (runInIO . f))
 
 -- | Run a simple REPL.
 replM
@@ -34,16 +34,18 @@ replM
   -> (ByteString -> m ())            -- ^ Action
   -> (ByteString -> m [ByteString])  -- ^ Completion
   -> m ()
-replM prompt action comp = do
-  setCompletion comp
-  res <- getInputLine prompt
-  case res of
-    Nothing   -> return ()
-    Just line -> do
-      _ <- action line
-      addHistory line
-      replM prompt action comp
+replM prompt action comp = loop where
+  loop = do
+    setCompletion comp
+    res <- getInputLine prompt
+    case res of
+      Nothing -> pure ()
+      Just line -> do
+        _ <- action line
+        addHistory line
+        loop
 
+-- | Complete
 byWord :: Monad m => (ByteString -> m [ByteString]) -> (ByteString -> m [ByteString])
 byWord f line = do
   let split = BSC.words line
@@ -54,11 +56,11 @@ byWord f line = do
       let (x,xs) = (last sp, init sp)
       res <- f x
       case res of
-        [] -> return [line]
+        [] -> pure [line]
         [y] ->
-          return [BSC.unwords xs <> " " <> x <> trimComplete x y <> " "]
+          pure [BSC.unwords xs <> " " <> x <> trimComplete x y <> " "]
         ys ->
-          return (map (complete x xs) ys)
+          pure (map (complete x xs) ys)
 
 complete :: ByteString -> [ByteString] -> ByteString -> ByteString
 complete x xs y =
