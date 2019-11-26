@@ -23,19 +23,22 @@ attribution preserved.
 
 ## Development workflow
 
+This project uses `stack` to build.
+
 The `Makefile` has a bunch of relevant phony targets for a development workflow including
 
+* `build` - Build the library and demo
 * `download` - Update vendored `linenoise`
 * `demo` - Run the demo app
 * `deps` - Install dev tools
 * `lint` - Lint with `hlint`
 * `format` - Format with `stylish-haskell`
-* `cisetup` - Invoked by CI to setup GHC
-* `citest` - Invoked by CI to test (build and lint)
+* `docs` - Generate docs
+
+In addition, there are targets starting with `ci` that are invoked in various CI phases.
 
 ## TODO
 
 * Support unicode (may involve vendoring a `linenoise` [fork](https://github.com/yhirose/linenoise/tree/utf8-support))
 * Verify that my FFI modifications for `ByteString` are memory-safe
-* Expose more of the `linenoise` API
 * Upload to Hackage
