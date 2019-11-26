@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1069047d6000309365f52a26eb70611f44799f038e61ba62461dbf603a470e8a
+-- hash: 8fc0acf464acee15477aaac851135ca25be086e4178042044dfafa176d92d921
 
 name:           linenoise
 version:        0.2.0
@@ -14,6 +14,8 @@ bug-reports:    https://github.com/ejconlon/haskell-linenoise/issues
 author:         Stephen Diehl, Eric Conlon
 maintainer:     ejconlon@gmail.com
 copyright:      2014 Stephen Diehl, 2019 Eric Conlon
+license:        BSD3
+license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md

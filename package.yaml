@@ -3,6 +3,8 @@ version:             0.2.0
 github:              "ejconlon/haskell-linenoise"
 author:              "Stephen Diehl, Eric Conlon"
 maintainer:          "ejconlon@gmail.com"
+license:             BSD3
+license-file:        LICENSE
 copyright:           "2014 Stephen Diehl, 2019 Eric Conlon"
 
 extra-source-files:
