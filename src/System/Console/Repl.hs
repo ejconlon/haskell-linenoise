@@ -20,16 +20,16 @@ module System.Console.Repl (
   byWord
 ) where
 
+import Control.Monad.Catch (MonadThrow, MonadCatch)
+import Control.Monad.Fail (MonadFail)
+import Control.Monad.Fix (MonadFix)
+import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.Reader (MonadReader, ReaderT, ask, runReaderT)
+import Control.Monad.State.Strict (MonadState, StateT, evalStateT, get, put)
+import Control.Monad.Trans (MonadTrans, lift)
 import Data.ByteString (ByteString)
-import qualified System.Console.FFI as FFI
--- TODO(econlon) Support UTF8
 import qualified Data.ByteString.Char8 as BSC
-
-import Control.Monad.Catch
-import Control.Monad.Identity
-import Control.Monad.Reader
-import Control.Monad.State.Strict
-import Control.Monad.Trans
+import qualified System.Console.FFI as FFI
 
 data Settings = Settings
   { historyFile :: Maybe FilePath
@@ -40,7 +40,8 @@ defaultSettings = Settings Nothing
 
 newtype ReplT m a =
   ReplT { unReplT :: ReaderT Settings m a }
-  deriving (Functor, Monad, Applicative, MonadIO, MonadReader Settings, MonadFix, MonadTrans, MonadThrow, MonadCatch)
+  deriving (Functor, Monad, Applicative, MonadIO, MonadReader Settings,
+            MonadFix, MonadTrans, MonadThrow, MonadCatch, MonadFail)
 
 runReplT :: ReplT m a -> Settings -> m a
 runReplT = runReaderT . unReplT

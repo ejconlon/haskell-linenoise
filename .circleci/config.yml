@@ -11,10 +11,10 @@ jobs:
             - build-cache-v1-{{ checksum "stack.yaml" }}-{{ checksum "package.yaml" }}
       - run:
           name: Resolve/Update Dependencies
-          command: stack --no-terminal setup
+          command: make cisetup
       - run:
           name: Run tests
-          command: stack --no-terminal test
+          command: make citest
       - save_cache:
           name: Cache Dependencies
           key: build-cache-v1-{{ checksum "stack.yaml" }}-{{ checksum "package.yaml" }}

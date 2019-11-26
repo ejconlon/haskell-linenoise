@@ -1,6 +1,20 @@
+.PHONY: cisetup
+cisetup:
+	stack --no-terminal setup
+	stack --no-terminal build --copy-compiler-tool hlint
+
+.PHONY: citest
+citest:
+	stack --no-terminal build
+	stack --no-terminal exec -- hlint -i 'Use newtype instead of data' src app
+
 .PHONY: build
 build:
 	stack build
+
+.PHONY: test
+test:
+	stack test
 
 .PHONY: demo
 demo: build
