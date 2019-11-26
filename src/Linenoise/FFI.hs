@@ -1,15 +1,15 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 
 module Linenoise.FFI (
-  getInputLine,
   addHistory,
   clearScreen,
-  stifleHistory,
-  historySave,
+  getInputLine,
   historyLoad,
+  historySave,
   printKeycodes,
-  setMultiline,
   setCompletion,
+  setMultiline,
+  stifleHistory,
 ) where
 
 import Data.ByteString (ByteString)
@@ -99,18 +99,19 @@ historyLoad fname = do
   str <- newCString fname
   linenoiseHistoryLoad str
 
--- | Clear the screen
+-- | Clear the screen.
 clearScreen :: IO ()
 clearScreen = linenoiseClearScreen
 
--- | Enable/Disable multiline input
+-- | Enable/Disable multiline input.
 setMultiline :: Bool -> IO ()
 setMultiline = linenoiseSetMultiLine . fromBool
 
+-- Print keycodes
 printKeycodes :: IO ()
 printKeycodes = linenoisePrintKeyCodes
 
--- | Set the current completion function
+-- | Set the current completion function.
 setCompletion :: (ByteString -> IO [ByteString]) -> IO ()
 setCompletion f = do
   cb <- makeFunPtr (makeCompletion f)

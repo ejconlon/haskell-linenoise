@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 50aeb8ee3236f2b5637692ce0e21cbb6e2f72fc4bbefcc487fa5a86bc1e976ed
+-- hash: 08ae98dae8aeb3dd229d84a27d6cc74065f1a4b95f55aa489f7c145f39f3594c
 
 name:           linenoise
 version:        0.2.0
@@ -43,6 +43,8 @@ library
   build-depends:
       base >=4.12
     , bytestring >=0.10
+    , exceptions >=0.10
+    , mtl >=2.2
     , unliftio-core >=0.1
   default-language: Haskell2010
 
@@ -56,6 +58,7 @@ executable linenoise-demo
   build-depends:
       base >=4.12
     , bytestring >=0.10
+    , exceptions >=0.10
     , linenoise
     , mtl >=2.2
     , unliftio-core >=0.1

@@ -1,6 +1,6 @@
 module Linenoise.Unlift (
-  getInputLine,
   addHistory,
+  getInputLine,
   setCompletion,
 ) where
 
@@ -17,6 +17,6 @@ getInputLine = liftIO . FFI.getInputLine
 addHistory :: MonadIO m => ByteString -> m ()
 addHistory = liftIO . FFI.addHistory
 
--- | Set the current completion function
+-- | Set the current completion function.
 setCompletion :: MonadUnliftIO m => (ByteString -> m [ByteString]) -> m ()
 setCompletion f = withRunInIO (\runInIO -> FFI.setCompletion (runInIO . f))

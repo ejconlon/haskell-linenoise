@@ -1,11 +1,13 @@
 module Linenoise
-  ( getInputLine
+  ( ReplT (..)
   , addHistory
-  , setCompletion
-  , replM
   , byWord
+  , getInputLine
+  , replM
+  , runReplT
+  , setCompletion
   ) where
 
 import Linenoise.Completion (byWord)
-import Linenoise.Repl (replM)
+import Linenoise.Repl (ReplT (..), replM, runReplT)
 import Linenoise.Unlift (addHistory, getInputLine, setCompletion)

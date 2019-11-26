@@ -7,7 +7,7 @@ module Linenoise.Completion
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BSC
 
--- | Complete by word
+-- | Complete by word.
 byWord :: Monad m => (ByteString -> m [ByteString]) -> (ByteString -> m [ByteString])
 byWord f line = do
   let split = BSC.words line

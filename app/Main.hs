@@ -1,34 +1,20 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main (main) where
 
 import Control.Monad (void)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.IO.Unlift (MonadUnliftIO)
-import Control.Monad.Reader (ReaderT (..))
-import Control.Monad.State.Strict (MonadState, get, modify, put)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.State.Strict (get, modify)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BSC
-import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Linenoise
 
 newtype History = History { unHistory :: [ByteString] }
 
-newtype Repl a = Repl { unRepl :: ReaderT (IORef History) IO a }
-  deriving (Functor, Applicative, Monad, MonadIO, MonadUnliftIO)
-
-instance MonadState History Repl where
-  get = Repl (ReaderT readIORef)
-  put = Repl . ReaderT . flip writeIORef
+type Repl a = ReplT () History IO a
 
 runRepl :: Repl a -> History -> IO (a, History)
-runRepl r h = do
-  ref <- newIORef h
-  res <- runReaderT (unRepl r) ref
-  final <- readIORef ref
-  pure (res, final)
+runRepl n = runReplT n ()
 
 completer :: ByteString -> Repl [ByteString]
 completer line = filter (BSC.isPrefixOf line) . unHistory <$> get
