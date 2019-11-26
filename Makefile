@@ -1,16 +1,16 @@
 .PHONY: cisetup
 cisetup:
-	stack --no-terminal setup
-	# stack --no-terminal build --copy-compiler-tool hlint
+	stack setup
 
 .PHONY: citest
-citest:
-	stack --no-terminal build
-	# stack --no-terminal exec -- hlint -i 'Use newtype instead of data' src app
+citest: test
 
 .PHONY: cidocs
-cidocs:
-	stack --no-terminal haddock --no-haddock-deps
+cidocs: docs
+
+.PHONY: cidoccompress
+cidoccompress:
+	tar -cvzf /tmp/haddock.tar.gz -C $(stack --stack --no-terminal path --local-install-root)/doc) .
 
 .PHONY: build
 build:

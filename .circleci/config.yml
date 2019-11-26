@@ -19,8 +19,8 @@ jobs:
           name: Generate docs
           command: make cidocs
       - run:
-          name: Move docs
-          command: mkdir -p /tmp/haddock && mv $(stack --no-terminal path --local-install-root)/doc /tmp/haddock
+          name: Compress docs
+          command: make cicompress
       - save_cache:
           name: Cache Dependencies
           key: build-cache-v1-{{ checksum "stack.yaml" }}-{{ checksum "package.yaml" }}
@@ -28,8 +28,7 @@ jobs:
             - "/root/.stack"
             - ".stack-work"
       - store_artifacts:
-          path: /tmp/haddock
-          destination: haddock
+          path: /tmp/haddock.tar.gz
 workflows:
   version: 2
   build_and_render:
