@@ -1,6 +1,13 @@
 Repl
 ----
 
+TODO
+* rename
+* proper license
+* split unlift module
+* support save
+* create repl module with settings
+
 Initial work on a lightweight readline library for Haskell based on the ``linenoise`` library. Designed from
 the ground up to work more smoothly with modern monad transformers and exceptions libraries.
 

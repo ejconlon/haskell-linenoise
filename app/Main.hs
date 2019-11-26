@@ -8,7 +8,7 @@ import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Reader (ReaderT (..))
-import Control.Monad.State.Strict (MonadState, StateT, get, modify, put, runStateT)
+import Control.Monad.State.Strict (MonadState, get, modify, put)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BSC
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)

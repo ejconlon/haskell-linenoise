@@ -1,0 +1,43 @@
+name:                linenoise
+version:             0.2.0
+github:              "ejconlon/haskell-linenoise"
+author:              "Stephen Diehl, Eric Conlon"
+maintainer:          "ejconlon@gmail.com"
+copyright:           "2014 Stephen Diehl, 2019 Eric Conlon"
+
+extra-source-files:
+- README.md
+
+description: Please see the README on GitHub at <https://github.com/ejconlon/haskell-linenoise#readme>
+
+dependencies:
+- base >= 4.12
+- bytestring >= 0.10
+- unliftio-core >= 0.1
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wpartial-fields
+- -Wredundant-constraints
+- -fno-warn-unused-top-binds
+
+library:
+  source-dirs: src
+  include-dirs: cbits
+  c-sources: cbits/linenoise.c
+
+executables:
+  linenoise-demo:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - linenoise
+    - mtl >= 2.2
