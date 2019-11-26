@@ -1,5 +1,5 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module System.Console.FFI (
   getInputLine,
@@ -14,12 +14,12 @@ module System.Console.FFI (
   setCompletion,
 ) where
 
-import Data.Foldable (forM_)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Unsafe as BSU
+import Data.Foldable (forM_)
 import Foreign
 import Foreign.C.String
-import Foreign.C.Types(CInt(..), CChar, CSize)
+import Foreign.C.Types (CChar, CInt (..), CSize)
 
 foreign import ccall "linenoise.h linenoise"
   linenoise :: CString -> IO CString

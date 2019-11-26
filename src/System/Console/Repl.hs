@@ -1,5 +1,5 @@
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -20,16 +20,16 @@ module System.Console.Repl (
   byWord
 ) where
 
-import qualified System.Console.FFI as FFI
 import Data.ByteString (ByteString)
+import qualified System.Console.FFI as FFI
 -- TODO(econlon) Support UTF8
 import qualified Data.ByteString.Char8 as BSC
 
+import Control.Monad.Catch
 import Control.Monad.Identity
-import Control.Monad.Trans
 import Control.Monad.Reader
 import Control.Monad.State.Strict
-import Control.Monad.Catch
+import Control.Monad.Trans
 
 data Settings = Settings
   { historyFile :: Maybe FilePath

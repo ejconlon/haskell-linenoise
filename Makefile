@@ -8,11 +8,15 @@ demo: build
 
 .PHONY: deps
 deps:
-	stack build --copy-compiler-tool hlint
+	stack build --copy-compiler-tool ghcid hlint stylish-haskell
 
 .PHONY: lint
 lint:
 	stack exec -- hlint -i 'Use newtype instead of data' src app
+
+.PHONY: format
+format:
+	find . -name '*.hs' | xargs -t stack exec -- stylish-haskell -i
 
 .PHONY: download
 download:

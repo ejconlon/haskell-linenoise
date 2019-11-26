@@ -2,10 +2,10 @@
 
 module Main where
 
-import System.Console.Repl
 import Control.Monad.State.Strict
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BSC
+import System.Console.Repl
 
 type Repl = ReplT (StateT [ByteString] IO)
 
