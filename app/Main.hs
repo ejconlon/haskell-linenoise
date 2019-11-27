@@ -19,10 +19,11 @@ runRepl n = runReplT n ()
 completer :: ByteString -> Repl [ByteString]
 completer line = filter (BSC.isPrefixOf line) <$> get
 
-action :: ByteString -> Repl ()
+action :: ByteString -> Repl ReplDirective
 action x = do
   modify (x:)
   liftIO (BSC.putStrLn x)
+  pure ReplContinue
 
 repl :: Repl ()
 repl = replM ">>> " action (byWord completer)

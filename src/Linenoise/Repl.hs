@@ -4,7 +4,8 @@
 
 -- | Helper functions and transformer to write your own REPLs.
 module Linenoise.Repl
-  ( ReplT (..)
+  ( ReplDirective (..)
+  , ReplT (..)
   , replM
   , runReplT
   ) where
@@ -61,11 +62,17 @@ runReplT n r s = do
   final <- liftIO (readIORef ref)
   pure (res, final)
 
+-- | Directive to control voluntary REPL termination.
+data ReplDirective
+  = ReplQuit
+  | ReplContinue
+  deriving (Eq, Show)
+
 -- | Run a simple REPL.
 replM
   :: MonadUnliftIO m
   => ByteString                      -- ^ Prompt
-  -> (ByteString -> m ())            -- ^ Action
+  -> (ByteString -> m ReplDirective) -- ^ Action
   -> (ByteString -> m [ByteString])  -- ^ Completion
   -> m ()
 replM prompt action comp = loop where
@@ -75,6 +82,8 @@ replM prompt action comp = loop where
     case res of
       Nothing -> pure ()
       Just line -> do
-        _ <- action line
+        directive <- action line
         Unlift.addHistory line
-        loop
+        case directive of
+          ReplContinue -> loop
+          ReplQuit -> pure ()
