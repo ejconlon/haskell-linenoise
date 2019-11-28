@@ -1,6 +1,7 @@
 -- | Unlifted versions of all FFI methods.
 module Linenoise.Unlift
-  ( addHistory
+  ( InputResult (..)
+  , addHistory
   , clearScreen
   , getInputLine
   , historyLoad
@@ -14,6 +15,7 @@ module Linenoise.Unlift
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
 import Data.ByteString (ByteString)
+import Linenoise.FFI (InputResult (..))
 import qualified Linenoise.FFI as FFI
 
 -- | Add to current history.
@@ -25,7 +27,7 @@ clearScreen :: MonadIO m => m ()
 clearScreen = liftIO FFI.clearScreen
 
 -- | Run the prompt, yielding a string.
-getInputLine :: MonadIO m => ByteString -> m (Maybe ByteString)
+getInputLine :: MonadIO m => ByteString -> m InputResult
 getInputLine = liftIO . FFI.getInputLine
 
 -- | Load history from a file.

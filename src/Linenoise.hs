@@ -1,6 +1,7 @@
 -- | Re-exports of all public entities.
 module Linenoise
-  ( ReplDirective (..)
+  ( InputResult (..)
+  , ReplDirective (..)
   , ReplT (..)
   , addHistory
   , byWord
@@ -18,5 +19,5 @@ module Linenoise
 
 import Linenoise.Completion (byWord)
 import Linenoise.Repl (ReplDirective (..), ReplT (..), replM, runReplT)
-import Linenoise.Unlift (addHistory, clearScreen, getInputLine, historyLoad, historySave, printKeycodes, setCompletion,
-                         setMultiline, stifleHistory)
+import Linenoise.Unlift (InputResult (..), addHistory, clearScreen, getInputLine, historyLoad, historySave,
+                         printKeycodes, setCompletion, setMultiline, stifleHistory)

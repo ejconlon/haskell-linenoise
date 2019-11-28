@@ -23,6 +23,7 @@ import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Zip (MonadZip)
 import Data.ByteString (ByteString)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import Linenoise.Unlift (InputResult (..))
 import qualified Linenoise.Unlift as Unlift
 
 -- | Basic monad transformer with mutable state that can be used with all "Linenoise.Unlift" functions.
@@ -71,19 +72,22 @@ data ReplDirective
 -- | Run a simple REPL.
 replM
   :: MonadUnliftIO m
-  => ByteString                      -- ^ Prompt
+  => ReplDirective                   -- ^ Directive on interrupt
+  -> ByteString                      -- ^ Prompt
   -> (ByteString -> m ReplDirective) -- ^ Action
   -> (ByteString -> m [ByteString])  -- ^ Completion
   -> m ()
-replM prompt action comp = loop where
+replM onInterrupt prompt action comp = loop where
   loop = do
     Unlift.setCompletion comp
     res <- Unlift.getInputLine prompt
-    case res of
-      Nothing -> pure ()
-      Just line -> do
+    directive <- case res of
+      InterruptResult -> pure onInterrupt
+      EofResult -> pure ReplQuit
+      LineResult line -> do
         directive <- action line
         Unlift.addHistory line
-        case directive of
-          ReplContinue -> loop
-          ReplQuit -> pure ()
+        pure directive
+    case directive of
+      ReplContinue -> loop
+      ReplQuit -> pure ()

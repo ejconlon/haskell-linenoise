@@ -41,5 +41,4 @@ In addition, there are targets starting with `ci` that are invoked in various CI
 
 * Support unicode (may involve vendoring a `linenoise` [fork](https://github.com/yhirose/linenoise/tree/utf8-support))
 * Verify that the FFI modifications for `ByteString` are memory-safe
-* Better interrupt (ctrl-c) handling
 * Upload to Hackage

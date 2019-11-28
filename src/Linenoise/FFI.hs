@@ -2,7 +2,8 @@
 
 -- | Just an FFI layer over the C library.
 module Linenoise.FFI
-  ( addHistory
+  ( InputResult (..)
+  , addHistory
   , clearScreen
   , getInputLine
   , historyLoad
@@ -17,6 +18,7 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Unsafe as BSU
 import Data.Foldable (forM_)
 import Foreign
+import Foreign.C.Error (eAGAIN, getErrno)
 import Foreign.C.String
 import Foreign.C.Types (CChar, CInt (..), CSize)
 
@@ -68,12 +70,23 @@ makeCompletion f buf lc = do
   comps <- f line
   forM_ comps (`BSU.unsafeUseAsCString` linenoiseAddCompletion lc)
 
+-- | Result of getInputLine.
+data InputResult
+  = InterruptResult        -- ^ ctrl+c
+  | EofResult              -- ^ ctrl+d
+  | LineResult !ByteString -- Possibly empty line.
+  deriving (Eq, Show)
+
 -- | Run the prompt, yielding a string.
-getInputLine :: ByteString -> IO (Maybe ByteString)
-getInputLine =
-  flip BSU.unsafeUseAsCString $ \str -> do
+getInputLine :: ByteString -> IO InputResult
+getInputLine prompt = do
+  res <- BSU.unsafeUseAsCString prompt $ \str -> do
     ptr <- linenoise str
     maybePeek BSU.unsafePackCString ptr
+  errno <- getErrno
+  if errno == eAGAIN
+    then pure InterruptResult
+    else pure (maybe EofResult LineResult res)
 
 -- | Add to current history.
 addHistory :: ByteString -> IO ()
