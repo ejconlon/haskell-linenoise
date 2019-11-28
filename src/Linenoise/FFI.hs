@@ -18,7 +18,7 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Unsafe as BSU
 import Data.Foldable (forM_)
 import Foreign
-import Foreign.C.Error (eAGAIN, getErrno)
+import Foreign.C.Error (eAGAIN, getErrno, resetErrno)
 import Foreign.C.String
 import Foreign.C.Types (CChar, CInt (..), CSize)
 
@@ -85,7 +85,7 @@ getInputLine prompt = do
     maybePeek BSU.unsafePackCString ptr
   errno <- getErrno
   if errno == eAGAIN
-    then pure InterruptResult
+    then resetErrno >> pure InterruptResult
     else pure (maybe EofResult LineResult res)
 
 -- | Add to current history.
