@@ -21,7 +21,7 @@ import Control.Monad.Reader (MonadReader, ReaderT (..), ask)
 import Control.Monad.State.Strict (MonadState (..))
 import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Zip (MonadZip)
-import Data.ByteString (ByteString)
+import Data.Text (Text)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Linenoise.Unlift (InputResult (..))
 import qualified Linenoise.Unlift as Unlift
@@ -73,9 +73,9 @@ data ReplDirective
 replM
   :: MonadUnliftIO m
   => ReplDirective                   -- ^ Directive on interrupt
-  -> ByteString                      -- ^ Prompt
-  -> (ByteString -> m ReplDirective) -- ^ Action
-  -> (ByteString -> m [ByteString])  -- ^ Completion
+  -> Text                            -- ^ Prompt
+  -> (Text -> m ReplDirective)       -- ^ Action
+  -> (Text -> m [Text])              -- ^ Completion
   -> m ()
 replM onInterrupt prompt action comp = loop where
   loop = do

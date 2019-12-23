@@ -5,24 +5,25 @@ module Main (main) where
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State.Strict (get, modify)
-import Data.ByteString (ByteString)
-import qualified Data.ByteString.Char8 as BSC
+import Data.Text (Text)
+import qualified Data.Text as Text
+import qualified Data.Text.IO as TIO
 import Linenoise
 
-type History = [ByteString]
+type History = [Text]
 
 type Repl a = ReplT () History IO a
 
 runRepl :: Repl a -> History -> IO (a, History)
 runRepl n = runReplT n ()
 
-completer :: ByteString -> Repl [ByteString]
-completer line = filter (BSC.isPrefixOf line) <$> get
+completer :: Text -> Repl [Text]
+completer line = filter (Text.isPrefixOf line) <$> get
 
-action :: ByteString -> Repl ReplDirective
+action :: Text -> Repl ReplDirective
 action x = do
   modify (x:)
-  liftIO (BSC.putStrLn x)
+  liftIO (TIO.putStrLn x)
   pure ReplContinue
 
 repl :: Repl ()

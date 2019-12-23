@@ -1,5 +1,5 @@
 name:                linenoise
-version:             0.2.0
+version:             0.3.0
 github:              "ejconlon/haskell-linenoise"
 author:              "Stephen Diehl, Eric Conlon"
 maintainer:          "ejconlon@gmail.com"
@@ -13,11 +13,12 @@ extra-source-files:
 description: Please see the README on GitHub at <https://github.com/ejconlon/haskell-linenoise#readme>
 
 dependencies:
-- base >= 4.12
-- bytestring >= 0.10
-- exceptions >= 0.10
+- base >=4.12
+- bytestring >=0.10
+- exceptions >=0.10
 - mtl >= 2.2
-- unliftio-core >= 0.1
+- text >=1.2
+- unliftio-core >=0.1
 
 ghc-options:
 - -Wall

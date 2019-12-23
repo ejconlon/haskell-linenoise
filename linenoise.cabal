@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: fb0addf5411bcda1f052aa7238506e7ba60a2958bea5172b84460391058c337a
+-- hash: 2c2c956c541689c8e50b583c04c97a1f6e18320d1524e96d826c2876d5b42a97
 
 name:           linenoise
-version:        0.2.0
+version:        0.3.0
 description:    Please see the README on GitHub at <https://github.com/ejconlon/haskell-linenoise#readme>
 homepage:       https://github.com/ejconlon/haskell-linenoise#readme
 bug-reports:    https://github.com/ejconlon/haskell-linenoise/issues
@@ -45,6 +45,7 @@ library
     , bytestring >=0.10
     , exceptions >=0.10
     , mtl >=2.2
+    , text >=1.2
     , unliftio-core >=0.1
   default-language: Haskell2010
 
@@ -61,5 +62,6 @@ executable linenoise-demo
     , exceptions >=0.10
     , linenoise
     , mtl >=2.2
+    , text >=1.2
     , unliftio-core >=0.1
   default-language: Haskell2010

@@ -1,3 +1,6 @@
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 
 -- | Just an FFI layer over the C library.
@@ -71,14 +74,14 @@ makeCompletion f buf lc = do
   forM_ comps (`BSU.unsafeUseAsCString` linenoiseAddCompletion lc)
 
 -- | Result of getInputLine.
-data InputResult
+data InputResult a
   = InterruptResult        -- ^ ctrl+c
   | EofResult              -- ^ ctrl+d
-  | LineResult !ByteString -- Possibly empty line.
-  deriving (Eq, Show)
+  | LineResult !a          -- Possibly empty line.
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | Run the prompt, yielding a string.
-getInputLine :: ByteString -> IO InputResult
+getInputLine :: ByteString -> IO (InputResult ByteString)
 getInputLine prompt = do
   res <- BSU.unsafeUseAsCString prompt $ \str -> do
     ptr <- linenoise str

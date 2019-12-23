@@ -4,13 +4,13 @@ module Linenoise.Completion
   ( byWord
   ) where
 
-import Data.ByteString (ByteString)
-import qualified Data.ByteString.Char8 as BSC
+import Data.Text (Text)
+import qualified Data.Text as Text
 
 -- | Complete by word.
-byWord :: Monad m => (ByteString -> m [ByteString]) -> (ByteString -> m [ByteString])
+byWord :: Monad m => (Text -> m [Text]) -> (Text -> m [Text])
 byWord f line = do
-  let split = BSC.words line
+  let split = Text.words line
   case split of
     [] -> f line
     [_] -> f line
@@ -20,13 +20,13 @@ byWord f line = do
       case res of
         [] -> pure [line]
         [y] ->
-          pure [BSC.unwords xs <> " " <> x <> trimComplete x y <> " "]
+          pure [Text.unwords xs <> " " <> x <> trimComplete x y <> " "]
         ys ->
           pure (map (complete x xs) ys)
 
-complete :: ByteString -> [ByteString] -> ByteString -> ByteString
+complete :: Text -> [Text] -> Text -> Text
 complete x xs y =
-  BSC.unwords xs <> " " <> x <> trimComplete x y
+  Text.unwords xs <> " " <> x <> trimComplete x y
 
-trimComplete :: ByteString -> ByteString -> ByteString
-trimComplete = BSC.drop . BSC.length
+trimComplete :: Text -> Text -> Text
+trimComplete = Text.drop . Text.length
