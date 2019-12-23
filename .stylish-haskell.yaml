@@ -29,5 +29,13 @@ columns: 120
 newline: lf
 
 language_extensions:
+  - DataKinds
+  - ExplicitForAll
   - FlexibleContexts
+  - LambdaCase
   - MultiParamTypeClasses
+  - MultiWayIf
+  - Rank2Types
+  - TemplateHaskell
+  - TupleSections
+  - TypeApplications
