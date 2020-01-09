@@ -1,5 +1,5 @@
 name:                linenoise
-version:             0.3.0
+version:             0.3.1
 github:              "ejconlon/haskell-linenoise"
 author:              "Stephen Diehl, Eric Conlon"
 maintainer:          "ejconlon@gmail.com"
@@ -40,7 +40,9 @@ library:
   - Linenoise.Completion
   source-dirs: src
   include-dirs: cbits
-  c-sources: cbits/linenoise.c
+  c-sources:
+  - cbits/linenoise.c
+  - cbits/linenoise.h
 
 executables:
   linenoise-demo:

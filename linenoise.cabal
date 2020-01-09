@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 9c5adcaeb5854166e0c083c000d0b95aefa62722036500d6cc7104cdd13c9ea3
+-- hash: 0ac5eb636f96c454e97cd9b0a65b0d2913dc32021ff8cd9f88d16ca0f4fd561a
 
 name:           linenoise
-version:        0.3.0
+version:        0.3.1
 synopsis:       A lightweight readline-replacement library for Haskell
 description:    Please see the README on GitHub at <https://github.com/ejconlon/haskell-linenoise#readme>
 category:       User Interfaces
@@ -42,6 +42,7 @@ library
       cbits
   c-sources:
       cbits/linenoise.c
+      cbits/linenoise.h
   build-depends:
       base >=4.12 && <5
     , bytestring >=0.10
