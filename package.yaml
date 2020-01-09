@@ -6,6 +6,8 @@ maintainer:          "ejconlon@gmail.com"
 license:             BSD3
 license-file:        LICENSE
 copyright:           "2014 Stephen Diehl, 2019 Eric Conlon"
+category:            User Interfaces
+synopsis:            A lightweight readline-replacement library for Haskell
 
 extra-source-files:
 - README.md
@@ -13,7 +15,7 @@ extra-source-files:
 description: Please see the README on GitHub at <https://github.com/ejconlon/haskell-linenoise#readme>
 
 dependencies:
-- base >=4.12
+- base >=4.12 && <5
 - bytestring >=0.10
 - exceptions >=0.10
 - mtl >= 2.2

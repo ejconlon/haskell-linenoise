@@ -4,11 +4,13 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2c2c956c541689c8e50b583c04c97a1f6e18320d1524e96d826c2876d5b42a97
+-- hash: 9c5adcaeb5854166e0c083c000d0b95aefa62722036500d6cc7104cdd13c9ea3
 
 name:           linenoise
 version:        0.3.0
+synopsis:       A lightweight readline-replacement library for Haskell
 description:    Please see the README on GitHub at <https://github.com/ejconlon/haskell-linenoise#readme>
+category:       User Interfaces
 homepage:       https://github.com/ejconlon/haskell-linenoise#readme
 bug-reports:    https://github.com/ejconlon/haskell-linenoise/issues
 author:         Stephen Diehl, Eric Conlon
@@ -41,7 +43,7 @@ library
   c-sources:
       cbits/linenoise.c
   build-depends:
-      base >=4.12
+      base >=4.12 && <5
     , bytestring >=0.10
     , exceptions >=0.10
     , mtl >=2.2
@@ -57,7 +59,7 @@ executable linenoise-demo
       app
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fno-warn-unused-top-binds -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.12
+      base >=4.12 && <5
     , bytestring >=0.10
     , exceptions >=0.10
     , linenoise
