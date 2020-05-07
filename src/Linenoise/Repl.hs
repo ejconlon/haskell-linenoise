@@ -13,7 +13,6 @@ module Linenoise.Repl
 import Control.Applicative (Alternative)
 import Control.Monad (MonadPlus)
 import Control.Monad.Catch (MonadCatch, MonadThrow)
-import Control.Monad.Fail (MonadFail)
 import Control.Monad.Fix (MonadFix)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.IO.Unlift (MonadUnliftIO (..), UnliftIO (..))
