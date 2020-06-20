@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 
@@ -17,12 +15,14 @@ module Linenoise.FFI
   , stifleHistory
   ) where
 
+import Control.Monad (unless)
 import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Unsafe as BSU
-import Data.Foldable (forM_)
-import Foreign
+import Data.Foldable (for_)
+import Foreign (FunPtr, Ptr, Storable (..), fromBool, maybePeek)
 import Foreign.C.Error (eAGAIN, getErrno, resetErrno)
-import Foreign.C.String
+import Foreign.C.String (CString, newCString)
 import Foreign.C.Types (CChar, CInt (..), CSize)
 
 foreign import ccall "linenoise.h linenoise"
@@ -71,7 +71,7 @@ makeCompletion :: (ByteString -> IO [ByteString]) -> (CString -> Completion -> I
 makeCompletion f buf lc = do
   line <- BSU.unsafePackCString buf
   comps <- f line
-  forM_ comps (`BSU.unsafeUseAsCString` linenoiseAddCompletion lc)
+  for_ comps (\c -> unless (BS.null c) (BSU.unsafeUseAsCString c (linenoiseAddCompletion lc)))
 
 -- | Result of getInputLine.
 data InputResult a
@@ -93,8 +93,8 @@ getInputLine prompt = do
 
 -- | Add to current history.
 addHistory :: ByteString -> IO ()
-addHistory =
-  flip BSU.unsafeUseAsCString $ \str -> do
+addHistory bs =
+  unless (BS.null bs) $ BSU.unsafeUseAsCString bs $ \str -> do
     _ <- linenoiseHistoryAdd str
     pure ()
 

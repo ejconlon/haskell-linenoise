@@ -15,13 +15,13 @@ import Control.Monad (MonadPlus)
 import Control.Monad.Catch (MonadCatch, MonadThrow)
 import Control.Monad.Fix (MonadFix)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.IO.Unlift (MonadUnliftIO (..), UnliftIO (..))
+import Control.Monad.IO.Unlift (MonadUnliftIO (..), wrappedWithRunInIO)
 import Control.Monad.Reader (MonadReader, ReaderT (..), ask)
 import Control.Monad.State.Strict (MonadState (..))
 import Control.Monad.Trans (MonadTrans (..))
 import Control.Monad.Zip (MonadZip)
-import Data.Text (Text)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import Data.Text (Text)
 import Linenoise.Unlift (InputResult (..))
 import qualified Linenoise.Unlift as Unlift
 
@@ -44,11 +44,10 @@ instance MonadTrans (ReplT r s) where
   lift = ReplT . lift . lift
 
 instance MonadUnliftIO m => MonadUnliftIO (ReplT r s m) where
-  askUnliftIO = do
-    UnliftIO run <- lift askUnliftIO
+  withRunInIO run = do
     r <- ask
-    ref <- askRef
-    pure (UnliftIO (\n -> run (refReplT n r ref)))
+    ref <-askRef
+    wrappedWithRunInIO lift (\n -> refReplT n r ref) run
 
 instance MonadIO m => MonadState s (ReplT r s m) where
   get = ReplT (ReaderT (const (ReaderT (liftIO . readIORef))))
