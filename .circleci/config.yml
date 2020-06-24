@@ -46,6 +46,9 @@ jobs:
           keys:
             - cabal-<< pipeline.parameters.cache_ver >>-{{ checksum "<< pipeline.parameters.project >>.cabal" }}
       - run:
+          name: Resolve/update dependencies
+          command: cabal update
+      - run:
           name: Build project
           command: cabal build
       - run:
