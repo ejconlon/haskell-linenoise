@@ -3,7 +3,7 @@ version: 2.1
 parameters:
   project:
     type: string
-    default: "linenoise"
+    default: "haskell-linenoise"
   cache_ver:
     type: string
     default: "v1"
