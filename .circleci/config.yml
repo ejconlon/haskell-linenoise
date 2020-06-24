@@ -44,7 +44,7 @@ jobs:
       - restore_cache:
           name: Restore cached dependencies
           keys:
-            - cabal-<< pipeline.parameters.cache_ver >>-{{ checksum "<< pipeline.parameters.project >>.cabal" }}
+            - cabal-<< pipeline.parameters.cache_ver >>-<< parameters.ghc_ver >>-{{ checksum "<< pipeline.parameters.project >>.cabal" }}
       - run:
           name: Resolve/update dependencies
           command: cabal update
@@ -56,7 +56,7 @@ jobs:
           command: cabal test
       - save_cache:
           name: Cache dependencies
-          key: cabal-<< pipeline.parameters.cache_ver >>-{{ checksum "<< pipeline.parameters.project >>.cabal" }}
+          key: cabal-<< pipeline.parameters.cache_ver >>-<< parameters.ghc_ver >>-{{ checksum "<< pipeline.parameters.project >>.cabal" }}
           paths:
             - "/root/.cabal"
             - "dist"
