@@ -58,6 +58,7 @@ jobs:
           name: Cache dependencies
           key: cabal-<< pipeline.parameters.cache_ver >>-{{ checksum "<< pipeline.parameters.project >>.cabal" }}
           paths:
+            - "/root/.cabal"
             - "dist"
             - "dist-newstyle"
 
