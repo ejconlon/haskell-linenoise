@@ -1,4 +1,7 @@
-resolver: lts-17.10
+resolver: lts-19.17
+
+ghc-options:
+  "$everything": -haddock
 
 packages:
-- '.'
+- .
