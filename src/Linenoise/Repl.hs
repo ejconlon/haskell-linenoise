@@ -8,7 +8,8 @@ module Linenoise.Repl
   , ReplT (..)
   , replM
   , runReplT
-  ) where
+  )
+where
 
 import Control.Applicative (Alternative)
 import Control.Monad (MonadPlus)
@@ -28,11 +29,21 @@ import qualified Linenoise.Unlift as Unlift
 -- | Basic monad transformer with mutable state that can be used with all "Linenoise.Unlift" functions.
 --   You do not have to use this, but it's here to cover most of what you would need without having
 --   to roll your own newtype.
-newtype ReplT r s m a = ReplT { unReplT :: ReaderT r (ReaderT (IORef s) m) a }
-  deriving (Functor, Applicative, Monad, MonadIO,
-            Alternative, MonadPlus, MonadFix, MonadZip,
-            MonadFail, MonadThrow, MonadCatch,
-            MonadReader r)
+newtype ReplT r s m a = ReplT {unReplT :: ReaderT r (ReaderT (IORef s) m) a}
+  deriving
+    ( Functor
+    , Applicative
+    , Monad
+    , MonadIO
+    , Alternative
+    , MonadPlus
+    , MonadFix
+    , MonadZip
+    , MonadFail
+    , MonadThrow
+    , MonadCatch
+    , MonadReader r
+    )
 
 askRef :: Applicative m => ReplT r s m (IORef s)
 askRef = ReplT (ReaderT (const (ReaderT pure)))
@@ -46,7 +57,7 @@ instance MonadTrans (ReplT r s) where
 instance MonadUnliftIO m => MonadUnliftIO (ReplT r s m) where
   withRunInIO run = do
     r <- ask
-    ref <-askRef
+    ref <- askRef
     wrappedWithRunInIO lift (\n -> refReplT n r ref) run
 
 instance MonadIO m => MonadState s (ReplT r s m) where
@@ -70,12 +81,17 @@ data ReplDirective
 -- | Run a simple REPL.
 replM
   :: MonadUnliftIO m
-  => ReplDirective                   -- ^ Directive on interrupt
-  -> Text                            -- ^ Prompt
-  -> (Text -> m ReplDirective)       -- ^ Action
-  -> (Text -> m [Text])              -- ^ Completion
+  => ReplDirective
+  -- ^ Directive on interrupt
+  -> Text
+  -- ^ Prompt
+  -> (Text -> m ReplDirective)
+  -- ^ Action
+  -> (Text -> m [Text])
+  -- ^ Completion
   -> m ()
-replM onInterrupt prompt action comp = loop where
+replM onInterrupt prompt action comp = loop
+ where
   loop = do
     Unlift.setCompletion comp
     res <- Unlift.getInputLine prompt

@@ -22,7 +22,7 @@ completer line = filter (Text.isPrefixOf line) <$> get
 
 action :: Text -> Repl ReplDirective
 action x = do
-  modify (x:)
+  modify (x :)
   liftIO (TIO.putStrLn x)
   pure ReplContinue
 

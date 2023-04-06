@@ -13,7 +13,8 @@ module Linenoise.FFI
   , setCompletion
   , setMultiline
   , stifleHistory
-  ) where
+  )
+where
 
 import Control.Monad (unless)
 import Data.ByteString (ByteString)
@@ -27,27 +28,36 @@ import Foreign.C.Types (CChar, CInt (..), CSize)
 
 foreign import ccall "linenoise.h linenoise"
   linenoise :: CString -> IO CString
+
 foreign import ccall "linenoise.h linenoiseHistoryAdd"
   linenoiseHistoryAdd :: Ptr CChar -> IO CInt
+
 foreign import ccall "linenoise.h linenoiseHistorySetMaxLen"
   linenoiseHistorySetMaxLen :: CInt -> IO CInt
+
 foreign import ccall "linenoise.h linenoiseHistorySave"
   linenoiseHistorySave :: CString -> IO ()
+
 foreign import ccall "linenoise.h linenoiseHistoryLoad"
   linenoiseHistoryLoad :: CString -> IO ()
+
 foreign import ccall "linenoise.h linenoiseClearScreen"
   linenoiseClearScreen :: IO ()
+
 foreign import ccall "linenoise.h linenoiseSetMultiLine"
   linenoiseSetMultiLine :: CInt -> IO ()
+
 foreign import ccall "linenoise.h linenoisePrintKeyCodes"
   linenoisePrintKeyCodes :: IO ()
+
 foreign import ccall "linenoise.h linenoiseSetCompletionCallback"
   linenoiseSetCompletionCallback :: FunPtr CompleteFunc -> IO ()
+
 foreign import ccall "linenoise.h linenoiseAddCompletion"
   linenoiseAddCompletion :: Completion -> CString -> IO ()
 
 foreign import ccall "wrapper"
-    makeFunPtr :: CompleteFunc -> IO (FunPtr CompleteFunc)
+  makeFunPtr :: CompleteFunc -> IO (FunPtr CompleteFunc)
 
 data CompletionType = CompletionType CSize (Ptr (Ptr CChar))
   deriving (Show, Eq)
@@ -75,9 +85,11 @@ makeCompletion f buf lc = do
 
 -- | Result of getInputLine.
 data InputResult a
-  = InterruptResult        -- ^ ctrl+c
-  | EofResult              -- ^ ctrl+d
-  | LineResult !a          -- Possibly empty line.
+  = -- | ctrl+c
+    InterruptResult
+  | -- | ctrl+d
+    EofResult
+  | LineResult !a -- Possibly empty line.
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | Run the prompt, yielding a string.

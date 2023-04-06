@@ -15,9 +15,20 @@ module Linenoise
   , setCompletion
   , setMultiline
   , stifleHistory
-  ) where
+  )
+where
 
 import Linenoise.Completion (byWord)
 import Linenoise.Repl (ReplDirective (..), ReplT (..), replM, runReplT)
-import Linenoise.Unlift (InputResult (..), addHistory, clearScreen, getInputLine, historyLoad, historySave,
-                         printKeycodes, setCompletion, setMultiline, stifleHistory)
+import Linenoise.Unlift
+  ( InputResult (..)
+  , addHistory
+  , clearScreen
+  , getInputLine
+  , historyLoad
+  , historySave
+  , printKeycodes
+  , setCompletion
+  , setMultiline
+  , stifleHistory
+  )

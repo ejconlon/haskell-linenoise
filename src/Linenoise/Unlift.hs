@@ -10,7 +10,8 @@ module Linenoise.Unlift
   , setCompletion
   , setMultiline
   , stifleHistory
-  ) where
+  )
+where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.IO.Unlift (MonadUnliftIO, withRunInIO)
@@ -47,7 +48,7 @@ printKeycodes = liftIO FFI.printKeycodes
 setCompletion :: MonadUnliftIO m => (Text -> m [Text]) -> m ()
 setCompletion f =
   let g = fmap (fmap encodeUtf8) . f . decodeUtf8
-  in withRunInIO (\runInIO -> FFI.setCompletion (runInIO . g))
+  in  withRunInIO (\runInIO -> FFI.setCompletion (runInIO . g))
 
 -- | Enable/Disable multiline input.
 setMultiline :: MonadIO m => Bool -> m ()

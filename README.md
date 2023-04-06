@@ -1,7 +1,5 @@
 # linenoise
 
-[![CircleCI](https://circleci.com/gh/ejconlon/haskell-linenoise/tree/master.svg?style=svg)](https://circleci.com/gh/ejconlon/haskell-linenoise/tree/master)
-
 A lightweight readline-replacement library for Haskell based on the `linenoise` library. (Not production ready!)
 See the [demo app](https://github.com/ejconlon/haskell-linenoise/blob/master/app/Main.hs) for usage, or see the [climb](https://github.com/ejconlon/climb) library for higher-level building blocks for GHCi-like REPLs with colon-commands.
 

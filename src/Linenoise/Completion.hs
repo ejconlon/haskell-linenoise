@@ -2,7 +2,8 @@
 
 module Linenoise.Completion
   ( byWord
-  ) where
+  )
+where
 
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -15,7 +16,7 @@ byWord f line = do
     [] -> f line
     [_] -> f line
     sp -> do
-      let (x,xs) = (last sp, init sp)
+      let (x, xs) = (last sp, init sp)
       res <- f x
       case res of
         [] -> pure [line]
