@@ -1,13 +1,13 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5a1085adefd24661dcb4f86110e45c0a9535af0b1e7189721c089f0eae60c5d2
+-- hash: 0254782fbfe2bb0d8c7beef670cb12c6e6acd0d2993d01655a777fb0e3a5ac17
 
 name:           linenoise
-version:        0.3.2
+version:        0.4.0
 synopsis:       A lightweight readline-replacement library for Haskell
 description:    Please see the README on GitHub at <https://github.com/ejconlon/haskell-linenoise#readme>
 category:       User Interfaces
@@ -48,7 +48,7 @@ library
     , bytestring >=0.10 && <1
     , exceptions >=0.10 && <1
     , mtl >=2.2 && <3
-    , text >=1.2 && <2
+    , text >=1.2 && <3
     , unliftio-core >=0.1 && <1
   default-language: Haskell2010
 
@@ -65,6 +65,6 @@ executable linenoise-demo
     , exceptions >=0.10 && <1
     , linenoise
     , mtl >=2.2 && <3
-    , text >=1.2 && <2
+    , text >=1.2 && <3
     , unliftio-core >=0.1 && <1
   default-language: Haskell2010

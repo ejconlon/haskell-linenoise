@@ -35,7 +35,3 @@ The `Makefile` has a bunch of relevant phony targets for a development workflow 
 
 In addition, there are targets starting with `ci` that are invoked in various CI phases.
 
-## TODO
-
-* Support unicode (may involve vendoring a `linenoise` [fork](https://github.com/yhirose/linenoise/tree/utf8-support))
-* Verify that the FFI modifications for `ByteString` are memory-safe
