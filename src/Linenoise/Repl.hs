@@ -45,7 +45,7 @@ newtype ReplT r s m a = ReplT {unReplT :: ReaderT r (ReaderT (IORef s) m) a}
     , MonadReader r
     )
 
-askRef :: Applicative m => ReplT r s m (IORef s)
+askRef :: (Applicative m) => ReplT r s m (IORef s)
 askRef = ReplT (ReaderT (const (ReaderT pure)))
 
 refReplT :: ReplT r s m a -> r -> IORef s -> m a
@@ -54,18 +54,18 @@ refReplT n r = runReaderT (runReaderT (unReplT n) r)
 instance MonadTrans (ReplT r s) where
   lift = ReplT . lift . lift
 
-instance MonadUnliftIO m => MonadUnliftIO (ReplT r s m) where
+instance (MonadUnliftIO m) => MonadUnliftIO (ReplT r s m) where
   withRunInIO run = do
     r <- ask
     ref <- askRef
     wrappedWithRunInIO lift (\n -> refReplT n r ref) run
 
-instance MonadIO m => MonadState s (ReplT r s m) where
+instance (MonadIO m) => MonadState s (ReplT r s m) where
   get = ReplT (ReaderT (const (ReaderT (liftIO . readIORef))))
   put s = ReplT (ReaderT (const (ReaderT (\ref -> liftIO (writeIORef ref s)))))
 
 -- | Run a ReplT.
-runReplT :: MonadIO m => ReplT r s m a -> r -> s -> m (a, s)
+runReplT :: (MonadIO m) => ReplT r s m a -> r -> s -> m (a, s)
 runReplT n r s = do
   ref <- liftIO (newIORef s)
   res <- refReplT n r ref
@@ -80,7 +80,7 @@ data ReplDirective
 
 -- | Run a simple REPL.
 replM
-  :: MonadUnliftIO m
+  :: (MonadUnliftIO m)
   => ReplDirective
   -- ^ Directive on interrupt
   -> Text

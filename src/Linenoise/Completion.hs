@@ -9,7 +9,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 
 -- | Complete by word.
-byWord :: Monad m => (Text -> m [Text]) -> (Text -> m [Text])
+byWord :: (Monad m) => (Text -> m [Text]) -> (Text -> m [Text])
 byWord f line = do
   let split = Text.words line
   case split of
