@@ -1,5 +1,5 @@
 name:                linenoise
-version:             0.4.1
+version:             0.4.2
 github:              "ejconlon/haskell-linenoise"
 author:              "Stephen Diehl, Eric Conlon"
 maintainer:          "ejconlon@gmail.com"
