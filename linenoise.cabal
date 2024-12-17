@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d7c93d3c5e6b850809e5aae6ce9b3df8784da16908082839f3fef8a267d5fe2e
+-- hash: 0fe84f0fefde903f538193166aea5a0f4549181c830e55b5ce3432c0723b96a0
 
 name:           linenoise
 version:        0.4.1
@@ -40,6 +40,8 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fno-warn-unused-top-binds
   include-dirs:
       cbits
+  install-includes:
+      cbits/linenoise.h
   c-sources:
       cbits/linenoise.c
   build-depends:
@@ -58,6 +60,8 @@ executable linenoise-demo
   hs-source-dirs:
       app
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fno-warn-unused-top-binds -threaded -rtsopts -with-rtsopts=-N
+  install-includes:
+      cbits/linenoise.h
   build-depends:
       base >=4.12 && <5
     , bytestring >=0.10 && <1

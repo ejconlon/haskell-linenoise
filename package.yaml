@@ -32,6 +32,9 @@ ghc-options:
 - -Wredundant-constraints
 - -fno-warn-unused-top-binds
 
+install-includes:
+- cbits/linenoise.h
+
 library:
   exposed-modules:
   - Linenoise
