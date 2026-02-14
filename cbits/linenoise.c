@@ -115,6 +115,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <stdint.h>
 #include "linenoise.h"
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
@@ -135,6 +136,315 @@ static int atexit_registered = 0; /* Register atexit just 1 time. */
 static int history_max_len = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
 static int history_len = 0;
 static char **history = NULL;
+
+/* =========================== UTF-8 support ================================ */
+
+/* Return the number of bytes that compose the UTF-8 character starting at
+ * 'c'. This function assumes a valid UTF-8 encoding and handles the four
+ * standard byte patterns:
+ *   0xxxxxxx -> 1 byte (ASCII)
+ *   110xxxxx -> 2 bytes
+ *   1110xxxx -> 3 bytes
+ *   11110xxx -> 4 bytes */
+static int utf8ByteLen(char c) {
+    unsigned char uc = (unsigned char)c;
+    if ((uc & 0x80) == 0)    return 1;   /* 0xxxxxxx: ASCII */
+    if ((uc & 0xE0) == 0xC0) return 2;   /* 110xxxxx: 2-byte seq */
+    if ((uc & 0xF0) == 0xE0) return 3;   /* 1110xxxx: 3-byte seq */
+    if ((uc & 0xF8) == 0xF0) return 4;   /* 11110xxx: 4-byte seq */
+    return 1; /* Fallback for invalid encoding, treat as single byte. */
+}
+
+/* Decode a UTF-8 sequence starting at 's' into a Unicode codepoint.
+ * Returns the codepoint value. Assumes valid UTF-8 encoding. */
+static uint32_t utf8DecodeChar(const char *s, size_t *len) {
+    unsigned char *p = (unsigned char *)s;
+    uint32_t cp;
+
+    if ((*p & 0x80) == 0) {
+        *len = 1;
+        return *p;
+    } else if ((*p & 0xE0) == 0xC0) {
+        *len = 2;
+        cp = (*p & 0x1F) << 6;
+        cp |= (p[1] & 0x3F);
+        return cp;
+    } else if ((*p & 0xF0) == 0xE0) {
+        *len = 3;
+        cp = (*p & 0x0F) << 12;
+        cp |= (p[1] & 0x3F) << 6;
+        cp |= (p[2] & 0x3F);
+        return cp;
+    } else if ((*p & 0xF8) == 0xF0) {
+        *len = 4;
+        cp = (*p & 0x07) << 18;
+        cp |= (p[1] & 0x3F) << 12;
+        cp |= (p[2] & 0x3F) << 6;
+        cp |= (p[3] & 0x3F);
+        return cp;
+    }
+    *len = 1;
+    return *p; /* Fallback for invalid sequences. */
+}
+
+/* Check if codepoint is a variation selector (emoji style modifiers). */
+static int isVariationSelector(uint32_t cp) {
+    return cp == 0xFE0E || cp == 0xFE0F;  /* Text/emoji style */
+}
+
+/* Check if codepoint is a skin tone modifier. */
+static int isSkinToneModifier(uint32_t cp) {
+    return cp >= 0x1F3FB && cp <= 0x1F3FF;
+}
+
+/* Check if codepoint is Zero Width Joiner. */
+static int isZWJ(uint32_t cp) {
+    return cp == 0x200D;
+}
+
+/* Check if codepoint is a Regional Indicator (for flag emoji). */
+static int isRegionalIndicator(uint32_t cp) {
+    return cp >= 0x1F1E6 && cp <= 0x1F1FF;
+}
+
+/* Check if codepoint is a combining mark or other zero-width character. */
+static int isCombiningMark(uint32_t cp) {
+    return (cp >= 0x0300 && cp <= 0x036F) ||   /* Combining Diacriticals */
+           (cp >= 0x1AB0 && cp <= 0x1AFF) ||   /* Combining Diacriticals Extended */
+           (cp >= 0x1DC0 && cp <= 0x1DFF) ||   /* Combining Diacriticals Supplement */
+           (cp >= 0x20D0 && cp <= 0x20FF) ||   /* Combining Diacriticals for Symbols */
+           (cp >= 0xFE20 && cp <= 0xFE2F);     /* Combining Half Marks */
+}
+
+/* Check if codepoint extends the previous character (doesn't start a new grapheme). */
+static int isGraphemeExtend(uint32_t cp) {
+    return isVariationSelector(cp) || isSkinToneModifier(cp) ||
+           isZWJ(cp) || isCombiningMark(cp);
+}
+
+/* Decode the UTF-8 codepoint ending at position 'pos' (exclusive) and
+ * return its value. Also sets *cplen to the byte length of the codepoint. */
+static uint32_t utf8DecodePrev(const char *buf, size_t pos, size_t *cplen) {
+    if (pos == 0) {
+        *cplen = 0;
+        return 0;
+    }
+    /* Scan backwards to find the start byte. */
+    size_t i = pos;
+    do {
+        i--;
+    } while (i > 0 && (pos - i) < 4 && ((unsigned char)buf[i] & 0xC0) == 0x80);
+    *cplen = pos - i;
+    size_t dummy;
+    return utf8DecodeChar(buf + i, &dummy);
+}
+
+/* Given a buffer and a position, return the byte length of the grapheme
+ * cluster before that position. A grapheme cluster includes:
+ * - The base character
+ * - Any following variation selectors, skin tone modifiers
+ * - ZWJ sequences (emoji joined by Zero Width Joiner)
+ * - Regional indicator pairs (flag emoji) */
+static size_t utf8PrevCharLen(const char *buf, size_t pos) {
+    if (pos == 0) return 0;
+
+    size_t total = 0;
+    size_t curpos = pos;
+
+    /* First, get the last codepoint. */
+    size_t cplen;
+    uint32_t cp = utf8DecodePrev(buf, curpos, &cplen);
+    if (cplen == 0) return 0;
+    total += cplen;
+    curpos -= cplen;
+
+    /* If we're at an extending character, we need to find what it extends.
+     * Keep going back through the grapheme cluster. */
+    while (curpos > 0) {
+        size_t prevlen;
+        uint32_t prevcp = utf8DecodePrev(buf, curpos, &prevlen);
+        if (prevlen == 0) break;
+
+        if (isZWJ(prevcp)) {
+            /* ZWJ joins two emoji. Include the ZWJ and continue to get
+             * the preceding character. */
+            total += prevlen;
+            curpos -= prevlen;
+            /* Now get the character before ZWJ. */
+            prevcp = utf8DecodePrev(buf, curpos, &prevlen);
+            if (prevlen == 0) break;
+            total += prevlen;
+            curpos -= prevlen;
+            cp = prevcp;
+            continue;  /* Check if there's more extending before this. */
+        } else if (isGraphemeExtend(cp)) {
+            /* Current cp is an extending character; include previous. */
+            total += prevlen;
+            curpos -= prevlen;
+            cp = prevcp;
+            continue;
+        } else if (isRegionalIndicator(cp) && isRegionalIndicator(prevcp)) {
+            /* Two regional indicators form a flag. But we need to be careful:
+             * flags are always pairs, so only join if we're at an even boundary.
+             * For simplicity, just join one pair. */
+            total += prevlen;
+            curpos -= prevlen;
+            break;
+        } else {
+            /* No more extending; we've found the start of the cluster. */
+            break;
+        }
+    }
+
+    return total;
+}
+
+/* Given a buffer, position and total length, return the byte length of the
+ * grapheme cluster at the current position. */
+static size_t utf8NextCharLen(const char *buf, size_t pos, size_t len) {
+    if (pos >= len) return 0;
+
+    size_t total = 0;
+    size_t curpos = pos;
+
+    /* Get the first codepoint. */
+    size_t cplen;
+    uint32_t cp = utf8DecodeChar(buf + curpos, &cplen);
+    total += cplen;
+    curpos += cplen;
+
+    int isRI = isRegionalIndicator(cp);
+
+    /* Consume any extending characters that follow. */
+    while (curpos < len) {
+        size_t nextlen;
+        uint32_t nextcp = utf8DecodeChar(buf + curpos, &nextlen);
+
+        if (isZWJ(nextcp) && curpos + nextlen < len) {
+            /* ZWJ: include it and the following character. */
+            total += nextlen;
+            curpos += nextlen;
+            /* Get the character after ZWJ. */
+            nextcp = utf8DecodeChar(buf + curpos, &nextlen);
+            total += nextlen;
+            curpos += nextlen;
+            continue;  /* Check for more extending after the joined char. */
+        } else if (isGraphemeExtend(nextcp)) {
+            /* Variation selector, skin tone, combining mark, etc. */
+            total += nextlen;
+            curpos += nextlen;
+            continue;
+        } else if (isRI && isRegionalIndicator(nextcp)) {
+            /* Second regional indicator for a flag pair. */
+            total += nextlen;
+            curpos += nextlen;
+            isRI = 0;  /* Only pair once. */
+            continue;
+        } else {
+            break;
+        }
+    }
+
+    return total;
+}
+
+/* Return the display width of a Unicode codepoint. This is a heuristic
+ * that works for most common cases:
+ * - Control chars and zero-width: 0 columns
+ * - Grapheme-extending chars (VS, skin tone, ZWJ): 0 columns
+ * - ASCII printable: 1 column
+ * - Wide chars (CJK, emoji, fullwidth): 2 columns
+ * - Everything else: 1 column
+ *
+ * This is not a full wcwidth() implementation, but a minimal heuristic
+ * that handles emoji and CJK characters reasonably well. */
+static int utf8CharWidth(uint32_t cp) {
+    /* Control characters and combining marks: zero width. */
+    if (cp < 32 || (cp >= 0x7F && cp < 0xA0)) return 0;
+    if (isCombiningMark(cp)) return 0;
+
+    /* Grapheme-extending characters: zero width.
+     * These modify the preceding character rather than taking space. */
+    if (isVariationSelector(cp)) return 0;
+    if (isSkinToneModifier(cp)) return 0;
+    if (isZWJ(cp)) return 0;
+
+    /* Wide character ranges - these display as 2 columns:
+     * - CJK Unified Ideographs and Extensions
+     * - Fullwidth forms
+     * - Various emoji ranges */
+    if (cp >= 0x1100 &&
+        (cp <= 0x115F ||                      /* Hangul Jamo */
+         cp == 0x2329 || cp == 0x232A ||      /* Angle brackets */
+         (cp >= 0x231A && cp <= 0x231B) ||    /* Watch, Hourglass */
+         (cp >= 0x23E9 && cp <= 0x23F3) ||    /* Various symbols */
+         (cp >= 0x23F8 && cp <= 0x23FA) ||    /* Various symbols */
+         (cp >= 0x25AA && cp <= 0x25AB) ||    /* Small squares */
+         (cp >= 0x25B6 && cp <= 0x25C0) ||    /* Play/reverse buttons */
+         (cp >= 0x25FB && cp <= 0x25FE) ||    /* Squares */
+         (cp >= 0x2600 && cp <= 0x26FF) ||    /* Misc Symbols (sun, cloud, etc) */
+         (cp >= 0x2700 && cp <= 0x27BF) ||    /* Dingbats (❤, ✂, etc) */
+         (cp >= 0x2934 && cp <= 0x2935) ||    /* Arrows */
+         (cp >= 0x2B05 && cp <= 0x2B07) ||    /* Arrows */
+         (cp >= 0x2B1B && cp <= 0x2B1C) ||    /* Squares */
+         cp == 0x2B50 || cp == 0x2B55 ||      /* Star, circle */
+         (cp >= 0x2E80 && cp <= 0xA4CF &&
+          cp != 0x303F) ||                    /* CJK ... Yi */
+         (cp >= 0xAC00 && cp <= 0xD7A3) ||    /* Hangul Syllables */
+         (cp >= 0xF900 && cp <= 0xFAFF) ||    /* CJK Compatibility Ideographs */
+         (cp >= 0xFE10 && cp <= 0xFE1F) ||    /* Vertical forms */
+         (cp >= 0xFE30 && cp <= 0xFE6F) ||    /* CJK Compatibility Forms */
+         (cp >= 0xFF00 && cp <= 0xFF60) ||    /* Fullwidth Forms */
+         (cp >= 0xFFE0 && cp <= 0xFFE6) ||    /* Fullwidth Signs */
+         (cp >= 0x1F1E6 && cp <= 0x1F1FF) ||  /* Regional Indicators (flags) */
+         (cp >= 0x1F300 && cp <= 0x1F64F) ||  /* Misc Symbols and Emoticons */
+         (cp >= 0x1F680 && cp <= 0x1F6FF) ||  /* Transport and Map Symbols */
+         (cp >= 0x1F900 && cp <= 0x1F9FF) ||  /* Supplemental Symbols */
+         (cp >= 0x1FA00 && cp <= 0x1FAFF) ||  /* Chess, Extended-A */
+         (cp >= 0x20000 && cp <= 0x2FFFF)))   /* CJK Extension B and beyond */
+        return 2;
+
+    return 1; /* Default: single width */
+}
+
+/* Calculate the display width of a UTF-8 string of 'len' bytes.
+ * This is used for cursor positioning in the terminal.
+ * Handles grapheme clusters: characters joined by ZWJ contribute 0 width
+ * after the first character in the sequence. */
+static size_t utf8StrWidth(const char *s, size_t len) {
+    size_t width = 0;
+    size_t i = 0;
+    int after_zwj = 0;  /* Track if previous char was ZWJ */
+
+    while (i < len) {
+        size_t clen;
+        uint32_t cp = utf8DecodeChar(s + i, &clen);
+
+        if (after_zwj) {
+            /* Character after ZWJ: don't add width, it's joined.
+             * But do check for extending chars after it. */
+            after_zwj = 0;
+        } else {
+            width += utf8CharWidth(cp);
+        }
+
+        /* Check if this is a ZWJ - next char will be joined. */
+        if (isZWJ(cp)) {
+            after_zwj = 1;
+        }
+
+        i += clen;
+    }
+    return width;
+}
+
+/* Return the display width of a single UTF-8 character at position 's'. */
+static int utf8SingleCharWidth(const char *s, size_t len) {
+    if (len == 0) return 0;
+    size_t clen;
+    uint32_t cp = utf8DecodeChar(s, &clen);
+    return utf8CharWidth(cp);
+}
 
 enum KEY_ACTION{
 	KEY_NULL = 0,	    /* NULL */
@@ -220,6 +530,13 @@ static int isUnsupportedTerm(void) {
 static int enableRawMode(int fd) {
     struct termios raw;
 
+    /* Test mode: when LINENOISE_ASSUME_TTY is set, skip terminal setup.
+     * This allows testing via pipes without a real terminal. */
+    if (getenv("LINENOISE_ASSUME_TTY")) {
+        rawmode = 1;
+        return 0;
+    }
+
     if (!isatty(STDIN_FILENO)) goto fatal;
     if (!atexit_registered) {
         atexit(linenoiseAtExit);
@@ -253,6 +570,11 @@ fatal:
 }
 
 static void disableRawMode(int fd) {
+    /* Test mode: nothing to restore. */
+    if (getenv("LINENOISE_ASSUME_TTY")) {
+        rawmode = 0;
+        return;
+    }
     /* Don't even check the return value as it's too late. */
     if (rawmode && tcsetattr(fd,TCSAFLUSH,&orig_termios) != -1)
         rawmode = 0;
@@ -287,6 +609,10 @@ static int getCursorPosition(int ifd, int ofd) {
  * if it fails. */
 static int getColumns(int ifd, int ofd) {
     struct winsize ws;
+
+    /* Test mode: use LINENOISE_COLS env var for fixed width. */
+    char *cols_env = getenv("LINENOISE_COLS");
+    if (cols_env) return atoi(cols_env);
 
     if (ioctl(1, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
         /* ioctl() failed. Try to query the terminal itself. */
@@ -505,16 +831,29 @@ static void abFree(struct abuf *ab) {
 }
 
 /* Helper of refreshSingleLine() and refreshMultiLine() to show hints
- * to the right of the prompt. */
-void refreshShowHints(struct abuf *ab, struct linenoiseState *l, int plen) {
+ * to the right of the prompt. Now uses display widths for proper UTF-8. */
+void refreshShowHints(struct abuf *ab, struct linenoiseState *l, int pwidth) {
     char seq[64];
-    if (hintsCallback && plen+l->len < l->cols) {
+    size_t bufwidth = utf8StrWidth(l->buf, l->len);
+    if (hintsCallback && pwidth + bufwidth < l->cols) {
         int color = -1, bold = 0;
         char *hint = hintsCallback(l->buf,&color,&bold);
         if (hint) {
-            int hintlen = strlen(hint);
-            int hintmaxlen = l->cols-(plen+l->len);
-            if (hintlen > hintmaxlen) hintlen = hintmaxlen;
+            size_t hintlen = strlen(hint);
+            size_t hintwidth = utf8StrWidth(hint, hintlen);
+            size_t hintmaxwidth = l->cols - (pwidth + bufwidth);
+            /* Truncate hint to fit, respecting UTF-8 boundaries. */
+            if (hintwidth > hintmaxwidth) {
+                size_t i = 0, w = 0;
+                while (i < hintlen) {
+                    size_t clen = utf8NextCharLen(hint, i, hintlen);
+                    int cwidth = utf8SingleCharWidth(hint + i, clen);
+                    if (w + cwidth > hintmaxwidth) break;
+                    w += cwidth;
+                    i += clen;
+                }
+                hintlen = i;
+            }
             if (bold == 1 && color == -1) color = 37;
             if (color != -1 || bold != 0)
                 snprintf(seq,64,"\033[%d;%d;49m",bold,color);
@@ -536,23 +875,44 @@ void refreshShowHints(struct abuf *ab, struct linenoiseState *l, int plen) {
  * cursor position, and number of columns of the terminal.
  *
  * Flags is REFRESH_* macros. The function can just remove the old
- * prompt, just write it, or both. */
+ * prompt, just write it, or both.
+ *
+ * This function is UTF-8 aware and uses display widths (not byte counts)
+ * for cursor positioning and horizontal scrolling. */
 static void refreshSingleLine(struct linenoiseState *l, int flags) {
     char seq[64];
-    size_t plen = strlen(l->prompt);
+    size_t pwidth = utf8StrWidth(l->prompt, l->plen); /* Prompt display width */
     int fd = l->ofd;
     char *buf = l->buf;
-    size_t len = l->len;
-    size_t pos = l->pos;
+    size_t len = l->len;    /* Byte length of buffer to display */
+    size_t pos = l->pos;    /* Byte position of cursor */
+    size_t poscol;          /* Display column of cursor */
+    size_t lencol;          /* Display width of buffer */
     struct abuf ab;
 
-    while((plen+pos) >= l->cols) {
-        buf++;
-        len--;
-        pos--;
+    /* Calculate the display width up to cursor and total display width. */
+    poscol = utf8StrWidth(buf, pos);
+    lencol = utf8StrWidth(buf, len);
+
+    /* Scroll the buffer horizontally if cursor is past the right edge.
+     * We need to trim full UTF-8 characters from the left until the
+     * cursor position fits within the terminal width. */
+    while (pwidth + poscol >= l->cols) {
+        size_t clen = utf8NextCharLen(buf, 0, len);
+        int cwidth = utf8SingleCharWidth(buf, clen);
+        buf += clen;
+        len -= clen;
+        pos -= clen;
+        poscol -= cwidth;
+        lencol -= cwidth;
     }
-    while (plen+len > l->cols) {
-        len--;
+
+    /* Trim from the right if the line still doesn't fit. */
+    while (pwidth + lencol > l->cols) {
+        size_t clen = utf8PrevCharLen(buf, len);
+        int cwidth = utf8SingleCharWidth(buf + len - clen, clen);
+        len -= clen;
+        lencol -= cwidth;
     }
 
     abInit(&ab);
@@ -562,14 +922,19 @@ static void refreshSingleLine(struct linenoiseState *l, int flags) {
 
     if (flags & REFRESH_WRITE) {
         /* Write the prompt and the current buffer content */
-        abAppend(&ab,l->prompt,strlen(l->prompt));
+        abAppend(&ab,l->prompt,l->plen);
         if (maskmode == 1) {
-            while (len--) abAppend(&ab,"*",1);
+            /* In mask mode, we output one '*' per UTF-8 character, not byte */
+            size_t i = 0;
+            while (i < len) {
+                abAppend(&ab,"*",1);
+                i += utf8NextCharLen(buf, i, len);
+            }
         } else {
             abAppend(&ab,buf,len);
         }
-        /* Show hits if any. */
-        refreshShowHints(&ab,l,plen);
+        /* Show hints if any. */
+        refreshShowHints(&ab,l,pwidth);
     }
 
     /* Erase to right */
@@ -577,8 +942,8 @@ static void refreshSingleLine(struct linenoiseState *l, int flags) {
     abAppend(&ab,seq,strlen(seq));
 
     if (flags & REFRESH_WRITE) {
-        /* Move cursor to original position. */
-        snprintf(seq,sizeof(seq),"\r\x1b[%dC", (int)(pos+plen));
+        /* Move cursor to original position (using display column, not byte). */
+        snprintf(seq,sizeof(seq),"\r\x1b[%dC", (int)(poscol+pwidth));
         abAppend(&ab,seq,strlen(seq));
     }
 
@@ -592,14 +957,18 @@ static void refreshSingleLine(struct linenoiseState *l, int flags) {
  * cursor position, and number of columns of the terminal.
  *
  * Flags is REFRESH_* macros. The function can just remove the old
- * prompt, just write it, or both. */
+ * prompt, just write it, or both.
+ *
+ * This function is UTF-8 aware and uses display widths for positioning. */
 static void refreshMultiLine(struct linenoiseState *l, int flags) {
     char seq[64];
-    int plen = strlen(l->prompt);
-    int rows = (plen+l->len+l->cols-1)/l->cols; /* rows used by current buf. */
-    int rpos = (plen+l->oldpos+l->cols)/l->cols; /* cursor relative row. */
+    size_t pwidth = utf8StrWidth(l->prompt, l->plen);  /* Prompt display width */
+    size_t bufwidth = utf8StrWidth(l->buf, l->len);    /* Buffer display width */
+    size_t poswidth = utf8StrWidth(l->buf, l->pos);    /* Cursor display width */
+    int rows = (pwidth+bufwidth+l->cols-1)/l->cols;    /* rows used by current buf. */
+    int rpos = l->oldrpos;   /* cursor relative row from previous refresh. */
     int rpos2; /* rpos after refresh. */
-    int col; /* colum position, zero-based. */
+    int col; /* column position, zero-based. */
     int old_rows = l->oldrows;
     int fd = l->ofd, j;
     struct abuf ab;
@@ -634,22 +1003,26 @@ static void refreshMultiLine(struct linenoiseState *l, int flags) {
 
     if (flags & REFRESH_WRITE) {
         /* Write the prompt and the current buffer content */
-        abAppend(&ab,l->prompt,strlen(l->prompt));
+        abAppend(&ab,l->prompt,l->plen);
         if (maskmode == 1) {
-            unsigned int i;
-            for (i = 0; i < l->len; i++) abAppend(&ab,"*",1);
+            /* In mask mode, output one '*' per UTF-8 character, not byte */
+            size_t i = 0;
+            while (i < l->len) {
+                abAppend(&ab,"*",1);
+                i += utf8NextCharLen(l->buf, i, l->len);
+            }
         } else {
             abAppend(&ab,l->buf,l->len);
         }
 
-        /* Show hits if any. */
-        refreshShowHints(&ab,l,plen);
+        /* Show hints if any. */
+        refreshShowHints(&ab,l,pwidth);
 
         /* If we are at the very end of the screen with our prompt, we need to
          * emit a newline and move the prompt to the first column. */
         if (l->pos &&
             l->pos == l->len &&
-            (l->pos+plen) % l->cols == 0)
+            (poswidth+pwidth) % l->cols == 0)
         {
             lndebug("<newline>");
             abAppend(&ab,"\n",1);
@@ -660,10 +1033,10 @@ static void refreshMultiLine(struct linenoiseState *l, int flags) {
         }
 
         /* Move cursor to right position. */
-        rpos2 = (plen+l->pos+l->cols)/l->cols; /* Current cursor relative row */
+        rpos2 = (pwidth+poswidth+l->cols)/l->cols; /* Current cursor relative row */
         lndebug("rpos2 %d", rpos2);
 
-        /* Go up till we reach the expected positon. */
+        /* Go up till we reach the expected position. */
         if (rows-rpos2 > 0) {
             lndebug("go-up %d", rows-rpos2);
             snprintf(seq,64,"\x1b[%dA", rows-rpos2);
@@ -671,7 +1044,7 @@ static void refreshMultiLine(struct linenoiseState *l, int flags) {
         }
 
         /* Set column. */
-        col = (plen+(int)l->pos) % (int)l->cols;
+        col = (pwidth+poswidth) % l->cols;
         lndebug("set col %d", 1+col);
         if (col)
             snprintf(seq,64,"\r\x1b[%dC", col);
@@ -682,6 +1055,7 @@ static void refreshMultiLine(struct linenoiseState *l, int flags) {
 
     lndebug("\n");
     l->oldpos = l->pos;
+    if (flags & REFRESH_WRITE) l->oldrpos = rpos2;
 
     if (write(fd,ab.b,ab.len) == -1) {} /* Can't recover from write error. */
     abFree(&ab);
@@ -718,29 +1092,37 @@ void linenoiseShow(struct linenoiseState *l) {
     }
 }
 
-/* Insert the character 'c' at cursor current position.
+/* Insert the character(s) 'c' of length 'clen' at cursor current position.
+ * This handles both single-byte ASCII and multi-byte UTF-8 sequences.
  *
  * On error writing to the terminal -1 is returned, otherwise 0. */
-int linenoiseEditInsert(struct linenoiseState *l, char c) {
-    if (l->len < l->buflen) {
+int linenoiseEditInsert(struct linenoiseState *l, const char *c, size_t clen) {
+    if (l->len + clen <= l->buflen) {
         if (l->len == l->pos) {
-            l->buf[l->pos] = c;
-            l->pos++;
-            l->len++;
+            /* Append at end of line. */
+            memcpy(l->buf+l->pos, c, clen);
+            l->pos += clen;
+            l->len += clen;
             l->buf[l->len] = '\0';
-            if ((!mlmode && l->plen+l->len < l->cols && !hintsCallback)) {
-                /* Avoid a full update of the line in the
-                 * trivial case. */
-                char d = (maskmode==1) ? '*' : c;
-                if (write(l->ofd,&d,1) == -1) return -1;
+            if ((!mlmode &&
+                 utf8StrWidth(l->prompt,l->plen)+utf8StrWidth(l->buf,l->len) < l->cols &&
+                 !hintsCallback)) {
+                /* Avoid a full update of the line in the trivial case:
+                 * single-width char, no hints, fits in one line. */
+                if (maskmode == 1) {
+                    if (write(l->ofd,"*",1) == -1) return -1;
+                } else {
+                    if (write(l->ofd,c,clen) == -1) return -1;
+                }
             } else {
                 refreshLine(l);
             }
         } else {
-            memmove(l->buf+l->pos+1,l->buf+l->pos,l->len-l->pos);
-            l->buf[l->pos] = c;
-            l->len++;
-            l->pos++;
+            /* Insert in the middle of the line. */
+            memmove(l->buf+l->pos+clen, l->buf+l->pos, l->len-l->pos);
+            memcpy(l->buf+l->pos, c, clen);
+            l->len += clen;
+            l->pos += clen;
             l->buf[l->len] = '\0';
             refreshLine(l);
         }
@@ -748,18 +1130,18 @@ int linenoiseEditInsert(struct linenoiseState *l, char c) {
     return 0;
 }
 
-/* Move cursor on the left. */
+/* Move cursor on the left. Moves by one UTF-8 character, not byte. */
 void linenoiseEditMoveLeft(struct linenoiseState *l) {
     if (l->pos > 0) {
-        l->pos--;
+        l->pos -= utf8PrevCharLen(l->buf, l->pos);
         refreshLine(l);
     }
 }
 
-/* Move cursor on the right. */
+/* Move cursor on the right. Moves by one UTF-8 character, not byte. */
 void linenoiseEditMoveRight(struct linenoiseState *l) {
     if (l->pos != l->len) {
-        l->pos++;
+        l->pos += utf8NextCharLen(l->buf, l->pos, l->len);
         refreshLine(l);
     }
 }
@@ -807,39 +1189,44 @@ void linenoiseEditHistoryNext(struct linenoiseState *l, int dir) {
 }
 
 /* Delete the character at the right of the cursor without altering the cursor
- * position. Basically this is what happens with the "Delete" keyboard key. */
+ * position. Basically this is what happens with the "Delete" keyboard key.
+ * Now handles multi-byte UTF-8 characters. */
 void linenoiseEditDelete(struct linenoiseState *l) {
     if (l->len > 0 && l->pos < l->len) {
-        memmove(l->buf+l->pos,l->buf+l->pos+1,l->len-l->pos-1);
-        l->len--;
+        size_t clen = utf8NextCharLen(l->buf, l->pos, l->len);
+        memmove(l->buf+l->pos, l->buf+l->pos+clen, l->len-l->pos-clen);
+        l->len -= clen;
         l->buf[l->len] = '\0';
         refreshLine(l);
     }
 }
 
-/* Backspace implementation. */
+/* Backspace implementation. Deletes the UTF-8 character before the cursor. */
 void linenoiseEditBackspace(struct linenoiseState *l) {
     if (l->pos > 0 && l->len > 0) {
-        memmove(l->buf+l->pos-1,l->buf+l->pos,l->len-l->pos);
-        l->pos--;
-        l->len--;
+        size_t clen = utf8PrevCharLen(l->buf, l->pos);
+        memmove(l->buf+l->pos-clen, l->buf+l->pos, l->len-l->pos);
+        l->pos -= clen;
+        l->len -= clen;
         l->buf[l->len] = '\0';
         refreshLine(l);
     }
 }
 
-/* Delete the previosu word, maintaining the cursor at the start of the
- * current word. */
+/* Delete the previous word, maintaining the cursor at the start of the
+ * current word. Handles UTF-8 by moving character-by-character. */
 void linenoiseEditDeletePrevWord(struct linenoiseState *l) {
     size_t old_pos = l->pos;
     size_t diff;
 
+    /* Skip spaces before the word (move backwards by UTF-8 chars). */
     while (l->pos > 0 && l->buf[l->pos-1] == ' ')
-        l->pos--;
+        l->pos -= utf8PrevCharLen(l->buf, l->pos);
+    /* Skip non-space characters (move backwards by UTF-8 chars). */
     while (l->pos > 0 && l->buf[l->pos-1] != ' ')
-        l->pos--;
+        l->pos -= utf8PrevCharLen(l->buf, l->pos);
     diff = old_pos - l->pos;
-    memmove(l->buf+l->pos,l->buf+old_pos,l->len-old_pos+1);
+    memmove(l->buf+l->pos, l->buf+old_pos, l->len-old_pos+1);
     l->len -= diff;
     refreshLine(l);
 }
@@ -886,6 +1273,7 @@ int linenoiseEditStart(struct linenoiseState *l, int stdin_fd, int stdout_fd, ch
 
     l->cols = getColumns(stdin_fd, stdout_fd);
     l->oldrows = 0;
+    l->oldrpos = 1;  /* Cursor starts on row 1. */
     l->history_index = 0;
 
     /* Buffer starts empty. */
@@ -895,7 +1283,7 @@ int linenoiseEditStart(struct linenoiseState *l, int stdin_fd, int stdout_fd, ch
     /* If stdin is not a tty, stop here with the initialization. We
      * will actually just read a line from standard input in blocking
      * mode later, in linenoiseEditFeed(). */
-    if (!isatty(l->ifd)) return 0;
+    if (!isatty(l->ifd) && !getenv("LINENOISE_ASSUME_TTY")) return 0;
 
     /* The latest history entry is always our current buffer, that
      * initially is just an empty string. */
@@ -928,14 +1316,18 @@ char *linenoiseEditMore = "If you see this, you are misusing the API: when linen
 char *linenoiseEditFeed(struct linenoiseState *l) {
     /* Not a TTY, pass control to line reading without character
      * count limits. */
-    if (!isatty(l->ifd)) return linenoiseNoTTY();
+    if (!isatty(l->ifd) && !getenv("LINENOISE_ASSUME_TTY")) return linenoiseNoTTY();
 
     char c;
     int nread;
     char seq[3];
 
     nread = read(l->ifd,&c,1);
-    if (nread <= 0) return NULL;
+    if (nread < 0) {
+        return (errno == EAGAIN || errno == EWOULDBLOCK) ? linenoiseEditMore : NULL;
+    } else if (nread == 0) {
+        return NULL;
+    }
 
     /* Only autocomplete when the callback is set. It returns < 0 when
      * there was an error reading from fd. Otherwise it will return the
@@ -981,11 +1373,17 @@ char *linenoiseEditFeed(struct linenoiseState *l) {
         }
         break;
     case CTRL_T:    /* ctrl-t, swaps current character with previous. */
+        /* Handle UTF-8: swap the two UTF-8 characters around cursor. */
         if (l->pos > 0 && l->pos < l->len) {
-            int aux = l->buf[l->pos-1];
-            l->buf[l->pos-1] = l->buf[l->pos];
-            l->buf[l->pos] = aux;
-            if (l->pos != l->len-1) l->pos++;
+            char tmp[32];
+            size_t prevlen = utf8PrevCharLen(l->buf, l->pos);
+            size_t currlen = utf8NextCharLen(l->buf, l->pos, l->len);
+            size_t prevstart = l->pos - prevlen;
+            /* Copy current char to tmp, move previous char right, paste tmp. */
+            memcpy(tmp, l->buf + l->pos, currlen);
+            memmove(l->buf + prevstart + currlen, l->buf + prevstart, prevlen);
+            memcpy(l->buf + prevstart, tmp, currlen);
+            if (l->pos + currlen <= l->len) l->pos += currlen;
             refreshLine(l);
         }
         break;
@@ -1057,7 +1455,22 @@ char *linenoiseEditFeed(struct linenoiseState *l) {
         }
         break;
     default:
-        if (linenoiseEditInsert(l,c)) return NULL;
+        /* Handle UTF-8 multi-byte sequences. When we receive the first byte
+         * of a multi-byte UTF-8 character, read the remaining bytes to
+         * complete the sequence before inserting. */
+        {
+            char utf8[4];
+            int utf8len = utf8ByteLen(c);
+            utf8[0] = c;
+            if (utf8len > 1) {
+                /* Read remaining bytes of the UTF-8 sequence. */
+                int i;
+                for (i = 1; i < utf8len; i++) {
+                    if (read(l->ifd, utf8+i, 1) != 1) break;
+                }
+            }
+            if (linenoiseEditInsert(l, utf8, utf8len)) return NULL;
+        }
         break;
     case CTRL_U: /* Ctrl+u, delete the whole line. */
         l->buf[0] = '\0';
@@ -1091,7 +1504,7 @@ char *linenoiseEditFeed(struct linenoiseState *l) {
  * returns something different than NULL. At this point the user input
  * is in the buffer, and we can restore the terminal in normal mode. */
 void linenoiseEditStop(struct linenoiseState *l) {
-    if (!isatty(l->ifd)) return;
+    if (!isatty(l->ifd) && !getenv("LINENOISE_ASSUME_TTY")) return;
     disableRawMode(l->ifd);
     printf("\n");
 }
@@ -1189,7 +1602,7 @@ static char *linenoiseNoTTY(void) {
 char *linenoise(const char *prompt) {
     char buf[LINENOISE_MAX_LINE];
 
-    if (!isatty(STDIN_FILENO)) {
+    if (!isatty(STDIN_FILENO) && !getenv("LINENOISE_ASSUME_TTY")) {
         /* Not a tty: read from file / pipe. In this mode we don't want any
          * limit to the line size, so we call a function to handle that. */
         return linenoiseNoTTY();
@@ -1318,7 +1731,7 @@ int linenoiseHistorySave(const char *filename) {
     fp = fopen(filename,"w");
     umask(old_umask);
     if (fp == NULL) return -1;
-    chmod(filename,S_IRUSR|S_IWUSR);
+    fchmod(fileno(fp),S_IRUSR|S_IWUSR);
     for (j = 0; j < history_len; j++)
         fprintf(fp,"%s\n",history[j]);
     fclose(fp);
