@@ -81,8 +81,10 @@ data ReplDirective
 -- | Run a simple REPL.
 replM
   :: (MonadUnliftIO m)
-  => ReplDirective
-  -- ^ Directive on interrupt
+  => m ReplDirective
+  -- ^ Action on interrupt
+  -> m ReplDirective
+  -- ^ Action on EOF
   -> Text
   -- ^ Prompt
   -> (Text -> m ReplDirective)
@@ -90,14 +92,14 @@ replM
   -> (Text -> m [Text])
   -- ^ Completion
   -> m ()
-replM onInterrupt prompt action comp = loop
+replM onInterrupt onEof prompt action comp = loop
  where
   loop = do
     Unlift.setCompletion comp
     res <- Unlift.getInputLine prompt
     directive <- case res of
-      InterruptResult -> pure onInterrupt
-      EofResult -> pure ReplQuit
+      InterruptResult -> onInterrupt
+      EofResult -> onEof
       LineResult line -> do
         directive <- action line
         Unlift.addHistory line

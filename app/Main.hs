@@ -27,7 +27,7 @@ action x = do
   pure ReplContinue
 
 repl :: Repl ()
-repl = replM ReplContinue ">>> " action (byWord completer)
+repl = replM (pure ReplContinue) (pure ReplQuit) ">>> " action (byWord completer)
 
 main :: IO ()
 main = void (runRepl repl [])

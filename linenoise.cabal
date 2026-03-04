@@ -7,7 +7,7 @@ cabal-version: 1.12
 -- hash: 42a9541c6a153888178292a118515374ece2c2851a61148bcec2105c19708638
 
 name:           linenoise
-version:        0.5.0
+version:        0.6.0
 synopsis:       A lightweight readline-replacement library for Haskell
 description:    Please see the README on GitHub at <https://github.com/ejconlon/haskell-linenoise#readme>
 category:       User Interfaces
