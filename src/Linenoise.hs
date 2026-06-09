@@ -1,12 +1,17 @@
 -- | Re-exports of all public entities.
 module Linenoise
-  ( InputResult (..)
+  ( EditResult (..)
+  , EditSession
+  , InputResult (..)
   , ReplDirective (..)
   , ReplT (..)
   , addHistory
   , byWord
   , clearScreen
+  , feedEditSession
+  , freeEditSession
   , getInputLine
+  , hideEditSession
   , historyLoad
   , historySave
   , printKeycodes
@@ -14,21 +19,36 @@ module Linenoise
   , runReplT
   , setCompletion
   , setMultiline
+  , showEditSession
+  , startEditSession
+  , stopEditSession
   , stifleHistory
+  , withEditSession
+  , withHiddenEditSession
   )
 where
 
 import Linenoise.Completion (byWord)
 import Linenoise.Repl (ReplDirective (..), ReplT (..), replM, runReplT)
 import Linenoise.Unlift
-  ( InputResult (..)
+  ( EditResult (..)
+  , EditSession
+  , InputResult (..)
   , addHistory
   , clearScreen
+  , feedEditSession
+  , freeEditSession
   , getInputLine
+  , hideEditSession
   , historyLoad
   , historySave
   , printKeycodes
   , setCompletion
   , setMultiline
+  , showEditSession
+  , startEditSession
+  , stopEditSession
   , stifleHistory
+  , withEditSession
+  , withHiddenEditSession
   )

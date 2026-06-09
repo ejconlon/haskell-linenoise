@@ -1,4 +1,4 @@
-resolver: lts-24.30
+resolver: nightly-2026-06-07
 
 ghc-options:
   "$everything": -haddock
