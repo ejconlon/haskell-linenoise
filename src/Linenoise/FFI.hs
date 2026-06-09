@@ -40,8 +40,13 @@ import Foreign.C.Types (CChar, CInt (..), CSize (..))
 import Foreign.Marshal.Alloc (free, mallocBytes)
 import Foreign.Marshal.Utils (copyBytes)
 
+-- | Opaque C @struct linenoiseState@ pointer target.
 data LinenoiseState
 
+-- | Active non-blocking linenoise edit session.
+--
+-- The session owns the C edit state, input buffer, and copied prompt. Prefer
+-- 'withEditSession' so raw terminal mode is stopped and memory is released.
 data EditSession = EditSession
   { editSessionState :: !(Ptr LinenoiseState)
   , editSessionBuffer :: !(Ptr CChar)
@@ -136,9 +141,12 @@ data InputResult a
   | LineResult !a -- Possibly empty line.
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
+-- | Result of feeding one input event to a non-blocking edit session.
 data EditResult a
-  = MoreResult
-  | DoneResult !(InputResult a)
+  = -- | Editing is still in progress; feed more input.
+    MoreResult
+  | -- | Editing finished with interrupt, EOF, or a completed line.
+    DoneResult !(InputResult a)
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | Run the prompt, yielding a string.
@@ -156,6 +164,10 @@ getInputLine prompt = do
       linenoiseFree ptr
       pure (LineResult line)
 
+-- | Start a non-blocking edit session with the given prompt.
+--
+-- The returned session must eventually be passed to 'stopEditSession' and
+-- 'freeEditSession'. Prefer 'withEditSession' for scoped use.
 startEditSession :: ByteString -> IO EditSession
 startEditSession prompt = do
   state <- mallocBytes linenoiseStateBytes
@@ -169,8 +181,18 @@ startEditSession prompt = do
       free buffer
       free prompt'
       fail "linenoiseEditStart failed"
-    else pure EditSession {editSessionState = state, editSessionBuffer = buffer, editSessionPrompt = prompt', editSessionStopped = stopped}
+    else
+      pure
+        EditSession
+          { editSessionState = state
+          , editSessionBuffer = buffer
+          , editSessionPrompt = prompt'
+          , editSessionStopped = stopped
+          }
 
+-- | Stop editing and restore normal terminal mode.
+--
+-- This operation is idempotent for a given 'EditSession'.
 stopEditSession :: EditSession -> IO ()
 stopEditSession EditSession {editSessionState = state, editSessionStopped = stopped} = do
   alreadyStopped <- readIORef stopped
@@ -178,17 +200,28 @@ stopEditSession EditSession {editSessionState = state, editSessionStopped = stop
     linenoiseEditStop state
     writeIORef stopped True
 
+-- | Free memory owned by an edit session.
+--
+-- Call this only after 'stopEditSession'. Prefer 'withEditSession'.
 freeEditSession :: EditSession -> IO ()
 freeEditSession EditSession {editSessionState = state, editSessionBuffer = buffer, editSessionPrompt = prompt} = do
   free state
   free buffer
   free prompt
 
+-- | Run an action with a managed non-blocking edit session.
+--
+-- The session is stopped and freed when the action exits, including on
+-- exceptions.
 withEditSession :: ByteString -> (EditSession -> IO a) -> IO a
 withEditSession prompt = bracket (startEditSession prompt) release
  where
   release session = stopEditSession session >> freeEditSession session
 
+-- | Feed one input event to a non-blocking edit session.
+--
+-- Returns 'MoreResult' until the user completes a line, interrupts, or sends
+-- EOF.
 feedEditSession :: EditSession -> IO (EditResult ByteString)
 feedEditSession EditSession {editSessionState = state} = do
   ptr <- linenoiseEditFeed state
@@ -210,12 +243,22 @@ feedEditSession EditSession {editSessionState = state} = do
           linenoiseFree ptr
           pure (DoneResult (LineResult line))
 
+-- | Hide the current prompt and edit buffer.
+--
+-- Use this before writing asynchronous output to the terminal.
 hideEditSession :: EditSession -> IO ()
 hideEditSession = linenoiseHide . editSessionState
 
+-- | Redraw the current prompt and edit buffer.
+--
+-- Use this after writing asynchronous output to the terminal.
 showEditSession :: EditSession -> IO ()
 showEditSession = linenoiseShow . editSessionState
 
+-- | Run an action while the current prompt and edit buffer are hidden.
+--
+-- This is the primitive for prompt-safe asynchronous terminal output. Callers
+-- that can write concurrently should still serialize access with a lock.
 withHiddenEditSession :: EditSession -> IO a -> IO a
 withHiddenEditSession session = bracket_ (hideEditSession session) (showEditSession session)
 

@@ -47,8 +47,8 @@ import Linenoise.Unlift
   , setMultiline
   , showEditSession
   , startEditSession
-  , stopEditSession
   , stifleHistory
+  , stopEditSession
   , withEditSession
   , withHiddenEditSession
   )
